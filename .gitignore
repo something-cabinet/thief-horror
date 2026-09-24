@@ -4,3 +4,6 @@ dist/
 /build_html/
 /build_win/
 /build_linux/
+
+# Local gameplay debug capture
+step-debug.log

@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://asset/model/abandoned_house/source/Models/Abandoned_House.fbx" id="1_map"]
+[ext_resource type="Script" path="res://level/abandoned_house_map.gd" id="2_script"]
+
+[node name="AbandonedHouseMap" type="Node3D"]
+script = ExtResource("2_script")
+
+[node name="Model" parent="." instance=ExtResource("1_map")]

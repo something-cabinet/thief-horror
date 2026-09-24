@@ -65,10 +65,9 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(GameManager.vsync_option_index)
 	vsync_option_button.selected = GameManager.vsync_option_index
 
-	DisplayServer.window_set_size(EnumAutoload.RESOLUTION_ARRAY[GameManager.resolution_index])
+	populate_resolution_options()
 	resolution_option_button.selected = GameManager.resolution_index
 
-	set_window_mode(GameManager.window_mode_index)
 	window_mode_option_button.selected = GameManager.window_mode_index
 
 	get_viewport().set_scaling_3d_scale(GameManager.scaling_3d / 100.0)
@@ -195,9 +194,15 @@ func set_window_mode(index: int) -> void:
 			resolution_option_button.selected = GameManager.resolution_index
 
 func centre_window():
-	var centre_screen = DisplayServer.screen_get_position() + DisplayServer.screen_get_size() / 2
+	var screen = DisplayServer.window_get_current_screen()
+	var usable_rect = DisplayServer.screen_get_usable_rect(screen)
 	var window_size = get_window().get_size_with_decorations()
-	get_window().set_position(centre_screen - window_size / 2)
+	get_window().set_position(usable_rect.position + (usable_rect.size - window_size) / 2)
+
+func populate_resolution_options() -> void:
+	resolution_option_button.clear()
+	for resolution in EnumAutoload.RESOLUTION_ARRAY:
+		resolution_option_button.add_item("%dx%d" % [resolution.x, resolution.y])
 
 func _on_window_mode_option_button_item_selected(index: int) -> void:
 	set_window_mode(index)

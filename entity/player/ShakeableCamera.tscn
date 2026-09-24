@@ -1,12 +1,22 @@
-[gd_scene load_steps=4 format=3 uid="uid://by6prw5q6j6sk"]
+[gd_scene load_steps=8 format=3 uid="uid://by6prw5q6j6sk"]
 
 [ext_resource type="Script" path="res://entity/player/shakeable_camera.gd" id="1_pf7yu"]
+[ext_resource type="Shader" path="res://material/ps1_depth.gdshader" id="2_ps1_depth"]
+[ext_resource type="Script" path="res://entity/player/ps1_depth_effect.gd" id="3_ps1_depth_script"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_cda8p"]
 noise_type = 0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_sjjg0"]
 size = Vector3(0.5, 0.5, 0.5)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ps1_depth"]
+render_priority = -127
+shader = ExtResource("2_ps1_depth")
+
+[sub_resource type="QuadMesh" id="QuadMesh_ps1_depth"]
+material = SubResource("ShaderMaterial_ps1_depth")
+size = Vector2(2, 2)
 
 [node name="ShakeableCamera" type="Area3D"]
 script = ExtResource("1_pf7yu")
@@ -19,3 +29,8 @@ shape = SubResource("BoxShape3D_sjjg0")
 current = true
 fov = 90.0
 near = 0.02
+
+[node name="PS1Depth" type="MeshInstance3D" parent="Camera3D"]
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_ps1_depth")
+script = ExtResource("3_ps1_depth_script")

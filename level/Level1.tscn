@@ -1,222 +1,60 @@
-[gd_scene format=3 uid="uid://c1bh7fpi21j3r"]
+[gd_scene load_steps=7 format=3 uid="uid://c1bh7fpi21j3r"]
 
-[ext_resource type="Material" uid="uid://p2sj02iixgy2" path="res://material/grid_mat.tres" id="2_seia2"]
-[ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="4_0h31y"]
-[ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="5_f7hgp"]
-[ext_resource type="Texture2D" uid="uid://b5sxv4bgxlyba" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_07-128x128.png" id="5_rynso"]
-[ext_resource type="Texture2D" uid="uid://bloscd0h7gksy" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_23-128x128.png" id="5_yc642"]
-[ext_resource type="PackedScene" uid="uid://d0wmejqbc8i1o" path="res://entity/enemy/dummy/DummyEnemy.tscn" id="6_iraej"]
-[ext_resource type="Script" uid="uid://cnufxbrbejuct" path="res://addons/proto_shape/proto_ramp/proto_ramp.gd" id="6_q2eb6"]
-[ext_resource type="Texture2D" uid="uid://dch601ewg0lc" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_18-128x128.png" id="8_gsiid"]
+[ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="1_player"]
+[ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="2_ambience"]
+[ext_resource type="PackedScene" path="res://level/AbandonedHouseMap.tscn" id="3_map"]
+[ext_resource type="PackedScene" path="res://level/Rain.tscn" id="4_rain"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_lg8b7"]
-sky_horizon_color = Color(0.67451, 0.682353, 0.698039, 1)
-sky_curve = 0.0175
-ground_bottom_color = Color(1, 1, 1, 1)
-ground_curve = 0.171484
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
+sky_top_color = Color(0.002, 0.004, 0.01, 1)
+sky_horizon_color = Color(0.025, 0.03, 0.05, 1)
+ground_bottom_color = Color(0.001, 0.002, 0.005, 1)
+ground_horizon_color = Color(0.018, 0.022, 0.035, 1)
 
-[sub_resource type="Sky" id="Sky_7bk1c"]
-sky_material = SubResource("ProceduralSkyMaterial_lg8b7")
+[sub_resource type="Sky" id="Sky_house"]
+sky_material = SubResource("ProceduralSkyMaterial_house")
 
-[sub_resource type="Environment" id="Environment_pa01f"]
-sky = SubResource("Sky_7bk1c")
-ambient_light_source = 2
-ambient_light_color = Color(0.19921875, 0.19921875, 0.19921875, 1)
-ambient_light_sky_contribution = 0.0
-ambient_light_energy = 0.5
-ssao_radius = 11.09
-ssao_intensity = 1.0
-ssao_power = 5.0
+[sub_resource type="Environment" id="Environment_house"]
+background_mode = 2
+sky = SubResource("Sky_house")
+ambient_light_source = 3
+ambient_light_color = Color(0.16, 0.19, 0.28, 1)
+ambient_light_energy = 0.42
+reflected_light_source = 2
+tonemap_mode = 2
 glow_enabled = true
-glow_levels/2 = 0.6
-glow_levels/3 = 0.6
-glow_intensity = 2.0
 fog_enabled = true
-fog_light_color = Color(0.171875, 0.16968764, 0.15949523, 1)
-fog_light_energy = 0.0
-fog_density = 0.1
+fog_light_color = Color(0.06, 0.075, 0.12, 1)
+fog_light_energy = 0.18
+fog_density = 0.016
+fog_height = 1.0
+fog_height_density = 0.08
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kchnc"]
-albedo_texture = ExtResource("5_yc642")
-uv1_scale = Vector3(0.5, 0.5, 0.5)
-uv1_triplanar = true
-texture_filter = 0
+[node name="Level1" type="Node3D"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ukoqd"]
-albedo_texture = ExtResource("5_rynso")
-uv1_scale = Vector3(0.5, 0.5, 0.5)
-uv1_triplanar = true
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_house")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ses5q"]
-albedo_texture = ExtResource("5_rynso")
-uv1_scale = Vector3(0.5, 0.5, 0.5)
-uv1_triplanar = true
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1nnrp"]
-albedo_texture = ExtResource("8_gsiid")
-uv1_scale = Vector3(0.25, 0.25, 0.25)
-uv1_triplanar = true
-
-[node name="Level1" type="Node3D" unique_id=2124475580]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=890501770]
-environment = SubResource("Environment_pa01f")
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1687345020]
-transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 6.98508, 0)
-visible = false
-layers = 3
-light_energy = 0.0
+[node name="Moonlight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -28, 0)
+light_color = Color(0.38, 0.48, 0.7, 1)
+light_energy = 0.38
 shadow_enabled = true
-shadow_opacity = 0.75
+shadow_opacity = 0.72
 
-[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=39821037]
+[node name="AbandonedHouseMap" parent="." instance=ExtResource("3_map")]
 
-[node name="Player" parent="." unique_id=566092042 instance=ExtResource("4_0h31y")]
-transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -0.53272, 2.19355, -43.6845)
+[node name="Player" parent="." instance=ExtResource("1_player")]
+position = Vector3(-51.526, -0.187, -104.284)
+rotation_degrees = Vector3(0, -40.6, 0)
 collision_layer = 4
 collision_mask = 3
+initial_camera_pitch_degrees = 1.3
 
-[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1418936496]
+[node name="Rain" parent="." instance=ExtResource("4_rain")]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 process_mode = 3
-stream = ExtResource("5_f7hgp")
+stream = ExtResource("2_ambience")
 autoplay = true
 bus = &"BGM"
-
-[node name="DummyEnemy" parent="." unique_id=589679954 instance=ExtResource("6_iraej")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.2545, 0)
-
-[node name="DummyEnemy2" parent="." unique_id=1455127845 instance=ExtResource("6_iraej")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0993, -6.2545, 0)
-
-[node name="Environment" type="Node3D" parent="." unique_id=1726217694]
-
-[node name="CSGBox3D" type="CSGBox3D" parent="Environment" unique_id=1660496144]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, -5, 1)
-use_collision = true
-size = Vector3(10, 5, 20)
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGBox3D2" type="CSGBox3D" parent="Environment" unique_id=617123523]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, -5, 1)
-use_collision = true
-size = Vector3(10, 5, 20)
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGBox3D3" type="CSGBox3D" parent="Environment" unique_id=1449169812]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, -4, 18)
-use_collision = true
-size = Vector3(20, 10, 15)
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGBox3D6" type="CSGBox3D" parent="Environment" unique_id=1599760415]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, -4, 18)
-use_collision = true
-size = Vector3(20, 10, 15)
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGBox3D9" type="CSGBox3D" parent="Environment" unique_id=923384125]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, -6, 19)
-use_collision = true
-size = Vector3(5, 5, 5)
-material = SubResource("StandardMaterial3D_ukoqd")
-
-[node name="CSGBox3D5" type="CSGBox3D" parent="Environment" unique_id=1638937646]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.5, -3, 9.5)
-use_collision = true
-size = Vector3(5, 5, 5)
-material = SubResource("StandardMaterial3D_ukoqd")
-
-[node name="CSGBox3D10" type="CSGBox3D" parent="Environment" unique_id=1770088412]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -6, 18)
-use_collision = true
-size = Vector3(4, 4, 4)
-material = SubResource("StandardMaterial3D_ukoqd")
-
-[node name="CSGBox3D4" type="CSGBox3D" parent="Environment" unique_id=220469906]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -3, 9)
-use_collision = true
-size = Vector3(20, 1, 5)
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGBox3D7" type="CSGBox3D" parent="Environment" unique_id=1953942917]
-transform = Transform3D(0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0, 0, 1, 11.1089, 4.17864, 24)
-use_collision = true
-size = Vector3(10, 1, 5)
-material = SubResource("StandardMaterial3D_ses5q")
-
-[node name="Room" type="CSGCombiner3D" parent="Environment" unique_id=1068300636]
-use_collision = true
-
-[node name="Box" type="CSGBox3D" parent="Environment/Room" unique_id=1734138283]
-size = Vector3(60, 30, 100)
-material = ExtResource("2_seia2")
-
-[node name="SubtractMainArea" type="CSGBox3D" parent="Environment/Room" unique_id=1975849855]
-operation = 2
-size = Vector3(50, 15, 50)
-material = ExtResource("2_seia2")
-
-[node name="SubtractMainArea2" type="CSGBox3D" parent="Environment/Room" unique_id=1608089049]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 9.12039)
-operation = 2
-size = Vector3(45, 5, 30)
-material = ExtResource("2_seia2")
-
-[node name="SubtractDoor" type="CSGBox3D" parent="Environment/Room" unique_id=1791085391]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -30)
-operation = 2
-size = Vector3(10, 8, 15)
-material = ExtResource("2_seia2")
-
-[node name="SubtractSpawn" type="CSGBox3D" parent="Environment/Room" unique_id=107366138]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -41.8466)
-operation = 2
-size = Vector3(15, 10, 15)
-material = ExtResource("2_seia2")
-
-[node name="ProtoRamp" type="CSGCombiner3D" parent="Environment" unique_id=912204327]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, -7.5, -19)
-use_collision = true
-script = ExtResource("6_q2eb6")
-type = 0
-width = 5.001
-height = 5.001
-depth = 10.001
-anchor = 0
-anchor_fixed = true
-material = SubResource("StandardMaterial3D_kchnc")
-
-[node name="CSGCylinder3D" type="CSGCylinder3D" parent="Environment" unique_id=1865910367]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2084, -2.38419e-07, -16.3242)
-use_collision = true
-radius = 1.0
-height = 30.0
-material = SubResource("StandardMaterial3D_1nnrp")
-
-[node name="CSGCylinder3D3" type="CSGCylinder3D" parent="Environment" unique_id=1226801799]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.2084, -2.38419e-07, -1.32418)
-use_collision = true
-radius = 1.0
-height = 30.0
-material = SubResource("StandardMaterial3D_1nnrp")
-
-[node name="CSGCylinder3D4" type="CSGCylinder3D" parent="Environment" unique_id=226653676]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.7916, -2.38419e-07, -1.32418)
-use_collision = true
-radius = 1.0
-height = 30.0
-material = SubResource("StandardMaterial3D_1nnrp")
-
-[node name="CSGCylinder3D2" type="CSGCylinder3D" parent="Environment" unique_id=298787740]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.7916, -2.38419e-07, -16.3242)
-use_collision = true
-radius = 1.0
-height = 30.0
-material = SubResource("StandardMaterial3D_1nnrp")
-
-[node name="CSGBox3D8" type="CSGBox3D" parent="Environment" unique_id=668363053]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.4126, -6, 19)
-use_collision = true
-size = Vector3(5, 5, 5)
-material = SubResource("StandardMaterial3D_ukoqd")

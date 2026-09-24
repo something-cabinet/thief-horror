@@ -37,6 +37,14 @@ func play_secondary_attack_release_anim():
 func play_idle_anim():
     anim_state_machine.travel("idle")
 
+func reset_for_gameplay() -> void:
+    firerate_timer.stop()
+    secondary_timer.stop()
+    release_charge()
+    play_idle_anim()
+    if muzzle_flash:
+        muzzle_flash.reset_flash()
+
 func try_primary_attack(only_check=false) -> bool:
     if firerate_timer.is_stopped() and not is_charging:
         if not only_check:

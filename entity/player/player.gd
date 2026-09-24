@@ -4,6 +4,8 @@ class_name Player
 @export var max_air_jump = 2
 @export var dash_cd: float = 0.5
 @export var aim_ray_prefab: PackedScene
+@export_range(0.0, 0.6, 0.05) var max_step_height := 0.35
+@export_range(-89.0, 89.0, 0.1) var initial_camera_pitch_degrees := 0.0
 
 @onready var player_camera: ShakeableCamera = $Neck/ShakeableCamera
 @onready var debug_label: Label = $Neck/ShakeableCamera/DebugLabel
@@ -16,7 +18,9 @@ class_name Player
 
 @onready var gun_container = $Neck/ShakeableCamera/GunContainer
 @onready var aim_ray: AimRay = $Neck/ShakeableCamera/AimRay
+@onready var aim_reticle: TextureRect = $Neck/ShakeableCamera/AimRecticle
 @onready var hitmarker: TextureRect = $Neck/ShakeableCamera/HitMarker
+@onready var pause_ui: PauseUI = $CanvasLayer/PauseUI
 
 var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
 
@@ -35,6 +39,15 @@ const RECOIL_COEFFICIENT = 10
 const BULLET_SPAWN_POS_VARIATION = 10
 const HITSCAN_COLLISION_MASK = 3
 const HITSCAN_SURFACE_OFFSET = 0.01
+const MIN_STEP_HEIGHT = 0.05
+const STEP_TEST_MARGIN = 0.002
+const STEP_CLEARANCE = 0.005
+const STEP_SEAM_TOLERANCE = 0.02
+const STEP_PROBE_INCREMENT = 0.05
+const STEP_LANDING_MIN_UP_DOT = 0.5
+const STUCK_LOG_INTERVAL_MSEC = 500
+const STUCK_MIN_REQUEST_DISTANCE = 0.005
+const STUCK_PROGRESS_RATIO = 0.15
 
 const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
@@ -61,10 +74,17 @@ var current_gun_slot = 0
 var is_swapping_gun = false
 var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
+var shot_assets_ready := false
+var attack_input_armed := false
+var landing_sfx_armed := false
+var is_step_traversing := false
+var step_debug_reason := "idle"
+var last_stuck_log_msec := 0
 
 func _ready():
 	GameManager.player = self
 	player_camera.set_fov(GameManager.camera_fov)
+	player_camera.rotation_degrees.x = initial_camera_pitch_degrees
 	if not GameManager.is_preparing_first_level:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	gun_container_original_pos = gun_container.position
@@ -76,6 +96,11 @@ func _ready():
 	call_deferred("prewarm_shot_assets")
 
 func _input(event):
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F3 or event.physical_keycode == KEY_F3:
+			debug_label.visible = not debug_label.visible
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
 	if event.is_action_pressed("dash"):
@@ -93,6 +118,12 @@ func _input(event):
 
 func _process(delta):
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
+	if not attack_input_armed:
+		attack_input_armed = (
+			not Input.is_action_pressed("primary_attack")
+			and not Input.is_action_pressed("secondary_attack")
+		)
+		return
 	if not is_swapping_gun:
 		check_primary_attack()
 		check_secondary_attack()
@@ -115,11 +146,13 @@ func _physics_process(delta):
 		state_chart.send_event("grounded")
 		current_air_jump_count = 0
 		if vel_vertical < 0:
-			if vel_vertical < -FALL_SPEED_TO_SHAKE_CAMERA:
-				player_camera.add_trauma(HEAVY_FALL_SHAKE_TRAUMA)
-			play_sfx(landing_sfx)
+			if landing_sfx_armed:
+				if vel_vertical < -FALL_SPEED_TO_SHAKE_CAMERA:
+					player_camera.add_trauma(HEAVY_FALL_SHAKE_TRAUMA)
+				play_sfx(landing_sfx)
 			jumped = false
 			vel_vertical = 0
+		landing_sfx_armed = true
 	else:
 		state_chart.send_event("airborne")
 
@@ -147,9 +180,15 @@ func _physics_process(delta):
 	if is_crouching:
 		velocity = velocity * CROUCH_SPEED_MODIFIER
 	velocity += Vector3(velocity_dir.x, 0, velocity_dir.z) * bonus_speed
-	move_and_slide()
+	var movement_start := global_position
+	var requested_horizontal_motion: Vector3 = Vector3(velocity.x, 0.0, velocity.z) * delta
+	is_step_traversing = false
+	var step_handled := _try_step_up(requested_horizontal_motion)
+	if not step_handled:
+		move_and_slide()
 
 	if debug_label.visible:
+		_log_stuck_movement(movement_start, requested_horizontal_motion)
 		show_debug_label()
 
 	var gun_sway_velocity = velocity * transform.basis
@@ -157,19 +196,171 @@ func _physics_process(delta):
 		gun_container.position = lerp(gun_container.position, gun_container_original_pos - (gun_sway_velocity / 500), delta * 10)
 	camera_control(delta)
 
+
+func _try_step_up(horizontal_motion: Vector3) -> bool:
+	if not is_on_floor() or jumped or velocity.y > 0.0:
+		step_debug_reason = "not grounded"
+		return false
+
+	if horizontal_motion.length_squared() < 0.000001:
+		step_debug_reason = "no horizontal motion"
+		return false
+
+	var start_transform := global_transform
+	var obstacle_collision := KinematicCollision3D.new()
+	if not test_move(start_transform, horizontal_motion, obstacle_collision):
+		step_debug_reason = "no obstacle"
+		return false
+	if obstacle_collision.get_collision_count() == 0:
+		step_debug_reason = "obstacle without contact"
+		return false
+	var obstacle_normal := obstacle_collision.get_normal()
+	var obstacle_is_walkable := obstacle_normal.dot(Vector3.UP) >= cos(floor_max_angle)
+
+	# Test the complete player shape, not a ray or a map-specific ramp. Try the
+	# maximum legal rise first, then smaller lifts for low door headers/seams.
+	var maximum_lift := max_step_height + STEP_CLEARANCE
+	var lift_distances: Array[float] = [maximum_lift, STEP_SEAM_TOLERANCE + STEP_CLEARANCE]
+	var probe_height := MIN_STEP_HEIGHT
+	while probe_height < max_step_height - STEP_TEST_MARGIN:
+		lift_distances.append(probe_height + STEP_CLEARANCE)
+		probe_height += STEP_PROBE_INCREMENT
+
+	var last_rejection := "no valid landing"
+	for lift_distance: float in lift_distances:
+		var raised_transform := start_transform
+		var up_motion := Vector3.UP * lift_distance
+		if test_move(start_transform, up_motion):
+			last_rejection = "blocked headroom at %.3f" % lift_distance
+			continue
+		raised_transform.origin += up_motion
+
+		var raised_forward_transform := raised_transform
+		var forward_collision := KinematicCollision3D.new()
+		if test_move(raised_transform, horizontal_motion, forward_collision):
+			last_rejection = "raised path blocked at %.3f" % lift_distance
+			# If the body cannot move forward at the maximum legal rise, the
+			# obstacle is a wall/tall object unless the contact is an overhead
+			# surface. Smaller probes can pass below a low stairwell ceiling.
+			var forward_normal := forward_collision.get_normal(0)
+			if (
+				is_equal_approx(lift_distance, maximum_lift)
+				and not obstacle_is_walkable
+				and forward_normal.y >= -STEP_TEST_MARGIN
+			):
+				break
+			continue
+		raised_forward_transform.origin += horizontal_motion
+
+		var down_motion := Vector3.DOWN * (lift_distance + floor_snap_length)
+		var down_collision := KinematicCollision3D.new()
+		if not test_move(raised_forward_transform, down_motion, down_collision):
+			last_rejection = "no landing at %.3f" % lift_distance
+			continue
+		if down_collision.get_collision_count() == 0:
+			last_rejection = "landing without contact"
+			continue
+
+		var landing_normal := down_collision.get_normal(0)
+		# The capsule's rounded foot initially meets a stair nose diagonally.
+		# A full-height wall remains blocked during the raised forward sweep.
+		if landing_normal.dot(Vector3.UP) < STEP_LANDING_MIN_UP_DOT:
+			last_rejection = "landing not walkable normal=%s" % landing_normal
+			continue
+
+		var landing_position := raised_forward_transform.origin + down_collision.get_travel()
+		var step_height := landing_position.y - start_transform.origin.y
+		var crosses_floor_seam := (
+			obstacle_is_walkable
+			and absf(step_height) <= STEP_SEAM_TOLERANCE
+		)
+		if (
+			(not crosses_floor_seam and step_height < MIN_STEP_HEIGHT)
+			or step_height > max_step_height + STEP_TEST_MARGIN
+		):
+			last_rejection = "landing height %.3f outside range" % step_height
+			continue
+
+		global_position = landing_position
+		vel_vertical = 0.0
+		velocity.y = 0.0
+		is_step_traversing = true
+		# Keep the view at its pre-step height; camera_control() eases it onto
+		# the new floor while the body is already safely supported.
+		if step_height >= MIN_STEP_HEIGHT:
+			neck.position.y -= step_height
+		step_debug_reason = "%s height=%.3f lift=%.3f" % [
+			"crossed floor seam" if crosses_floor_seam else "accepted",
+			step_height,
+			lift_distance,
+		]
+		return true
+
+	step_debug_reason = last_rejection
+	return false
+
+
+func _log_stuck_movement(movement_start: Vector3, requested_motion: Vector3) -> void:
+	if raw_input_dir.length_squared() < 0.01:
+		return
+	var requested_distance := requested_motion.length()
+	if requested_distance < STUCK_MIN_REQUEST_DISTANCE:
+		return
+	var actual_motion := global_position - movement_start
+	actual_motion.y = 0.0
+	if actual_motion.length() >= requested_distance * STUCK_PROGRESS_RATIO:
+		return
+	var now := Time.get_ticks_msec()
+	if now - last_stuck_log_msec < STUCK_LOG_INTERVAL_MSEC:
+		return
+	last_stuck_log_msec = now
+
+	var blocker := "none"
+	var contact := Vector3.ZERO
+	var normal := Vector3.ZERO
+	var collision := KinematicCollision3D.new()
+	var probe_motion := requested_motion.normalized() * maxf(requested_distance, 0.08)
+	if test_move(global_transform, probe_motion, collision) and collision.get_collision_count() > 0:
+		var collider := collision.get_collider(0)
+		if collider is Node:
+			blocker = str((collider as Node).get_path())
+		elif collider != null:
+			blocker = collider.get_class()
+		contact = collision.get_position(0)
+		normal = collision.get_normal(0)
+
+	var log_line := (
+		"PLAYER_STUCK xyz=(%.3f, %.3f, %.3f) input=(%.2f, %.2f) "
+		+ "requested=(%.3f, %.3f) actual=%.4f on_floor=%s step=%s "
+		+ "step_result=\"%s\" pitch_deg=%.1f yaw_deg=%.1f blocker=%s "
+		+ "contact=(%.3f, %.3f, %.3f) normal=(%.3f, %.3f, %.3f)"
+	) % [
+			global_position.x, global_position.y, global_position.z,
+			raw_input_dir.x, raw_input_dir.y,
+			requested_motion.x, requested_motion.z, actual_motion.length(),
+			str(is_on_floor()), str(is_step_traversing), step_debug_reason,
+			player_camera.rotation_degrees.x, rotation_degrees.y, blocker,
+			contact.x, contact.y, contact.z,
+			normal.x, normal.y, normal.z,
+		]
+	print(log_line)
+
 func play_sfx(sfx: AudioStream):
 	audio_player.play(sfx, "SFX", true)
 
 func show_debug_label():
 	var h_speed = snapped(Vector3(velocity.x, 0, velocity.z).length(), 0.1)
 	var v_speed = snapped(vel_vertical, 0.1)
-	var snapped_height = snapped(global_position.y, 0.1)
+	var position := global_position
 	Engine.get_frames_per_second()
-	debug_label.text = ""
-	debug_label.text += "FPS: {0}".format([Engine.get_frames_per_second()])
+	debug_label.text = "F3: hide debug"
+	debug_label.text += "\nXYZ: %.3f, %.3f, %.3f" % [position.x, position.y, position.z]
+	debug_label.text += "\nYaw: %.1f | Pitch: %.1f" % [rotation_degrees.y, player_camera.rotation_degrees.x]
+	debug_label.text += "\nFPS: {0}".format([Engine.get_frames_per_second()])
 	debug_label.text += "\nHSpeed: {0} u/s\nVSpeed: {1} u/s".format([h_speed, v_speed])
-	debug_label.text += "\nHeight from ground: {0}".format([snapped_height - 1.5])
 	debug_label.text += "\nOn ground: {0} | wall-cling: {1}".format([is_on_floor(), moving_toward_wall()])
+	debug_label.text += "\nStep traversal: {0}".format([is_step_traversing])
+	debug_label.text += "\nStep result: {0}".format([step_debug_reason])
 	debug_label.text += "\nIs dashing: {0} | Is crouching: {1} | Is sprinting: {2}".format([is_dashing, is_crouching, is_sprinting])
 	debug_label.text += "\nAir jumps left: {0}".format([max_air_jump - current_air_jump_count])
 	debug_label.text += "\nCoyote jump: {0}".format([can_coyote_jump])
@@ -426,6 +617,35 @@ func prewarm_shot_assets() -> void:
 	prewarm_enemy_effects(get_parent())
 	if GameManager.is_preparing_first_level:
 		await render_prewarmed_shot_assets()
+	shot_assets_ready = true
+
+func set_preview_mode(enabled: bool) -> void:
+	gun_container.visible = not enabled
+	aim_reticle.visible = not enabled
+	hitmarker.visible = not enabled
+	debug_label.visible = false
+	pause_ui.visible = false
+	pause_ui.is_paused = false
+	pause_ui.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_ALWAYS
+	if not enabled:
+		attack_input_armed = false
+		for child in gun_container.get_children():
+			if child is Gun:
+				child.reset_for_gameplay()
+
+func snap_to_floor(max_distance: float = 100.0) -> void:
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position + Vector3.UP,
+		global_position + Vector3.DOWN * max_distance,
+		1,
+		[get_rid()]
+	)
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return
+	var capsule := $CollisionShape3D.shape as CapsuleShape3D
+	var half_height := capsule.height * 0.5 if capsule != null else 1.0
+	global_position.y = result.position.y + half_height + 0.01
 
 func render_prewarmed_shot_assets() -> void:
 	var warmup_start := player_camera.global_position
