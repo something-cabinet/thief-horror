@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemyResource" load_steps=2 format=3 uid="uid://bssnvfuelykkw"]
+
+[ext_resource type="Script" path="res://entity/enemy/enemy_resource.gd" id="1_es47x"]
+
+[resource]
+script = ExtResource("1_es47x")
+name = "Dummy"
+max_hp = 100
+base_damage = 10
+base_movespeed = 10.0

@@ -1,0 +1,63 @@
+[gd_scene load_steps=10 format=3 uid="uid://du8i8c6s2bmy7"]
+
+[ext_resource type="Texture2D" uid="uid://d1aj3233bw6m8" path="res://asset/sprite/circle.png" id="1_dbyfa"]
+[ext_resource type="Script" path="res://entity/common/self_destruct_3dparticle.gd" id="1_yj47v"]
+
+[sub_resource type="Gradient" id="Gradient_cf1y7"]
+offsets = PackedFloat32Array(0, 0.267773, 0.850711)
+colors = PackedColorArray(1, 0.414063, 0.414063, 1, 1, 0.0398626, 0, 1, 0.238281, 0.0193187, 0, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_28vmk"]
+gradient = SubResource("Gradient_cf1y7")
+
+[sub_resource type="Curve" id="Curve_kklif"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.755556, 0.5), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_wjkmq"]
+curve = SubResource("Curve_kklif")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_mrl84"]
+lifetime_randomness = 0.3
+angle_min = -30.0
+angle_max = 30.0
+direction = Vector3(0, 0, -1)
+spread = 15.0
+initial_velocity_min = 4.0
+initial_velocity_max = 6.0
+angular_velocity_min = -45.0
+angular_velocity_max = 45.0
+linear_accel_min = -5.0
+linear_accel_max = -5.0
+scale_min = 0.75
+scale_max = 1.25
+scale_curve = SubResource("CurveTexture_wjkmq")
+color_ramp = SubResource("GradientTexture1D_28vmk")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xo510"]
+transparency = 1
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_dbyfa")
+rim_enabled = true
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_t02kr"]
+material = SubResource("StandardMaterial3D_xo510")
+size = Vector2(0.1, 0.1)
+
+[node name="BloodSplatter" type="GPUParticles3D"]
+emitting = false
+amount = 20
+one_shot = true
+explosiveness = 1.0
+randomness = 0.5
+visibility_aabb = AABB(-0.759668, -4.60187, -3.61497, 1.77845, 4.74407, 3.71498)
+process_material = SubResource("ParticleProcessMaterial_mrl84")
+draw_pass_1 = SubResource("QuadMesh_t02kr")
+script = ExtResource("1_yj47v")
+
+[connection signal="finished" from="." to="." method="_on_finished"]

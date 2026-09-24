@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://cd1tqjm2e87jy"]
+
+[ext_resource type="Script" path="res://entity/player/aim_ray.gd" id="1_2sjnk"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_j2jrk"]
+size = Vector3(0.1, 0.1, 100)
+
+[node name="AimRay" type="RayCast3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.000178993, -0.611622)
+target_position = Vector3(0, 0, -100)
+collision_mask = 3
+script = ExtResource("1_2sjnk")
+
+[node name="AimRayEnd" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -101)
+
+[node name="AimRayBoxCast" type="ShapeCast3D" parent="."]
+shape = SubResource("BoxShape3D_j2jrk")
+target_position = Vector3(0, 0, -50)
+collision_mask = 3

@@ -1,0 +1,88 @@
+[gd_scene load_steps=4 format=3 uid="uid://byj1y3wrwtdtq"]
+
+[ext_resource type="Script" path="res://ui/pause_ui.gd" id="1_y22bm"]
+[ext_resource type="PackedScene" uid="uid://biqm56x6ewbmo" path="res://ui/SettingUI.tscn" id="1_oj67h"]
+[ext_resource type="StyleBox" path="res://ui/panel_style.tres" id="3_panel"]
+
+[node name="PauseUI" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_y22bm")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="PauseMenu" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="PauseMenu"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("3_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PauseMenu/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="PauseMenu/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="PauseMenu/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ResumeButton" type="Button" parent="PauseMenu/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Resume"
+
+[node name="SettingButton" type="Button" parent="PauseMenu/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Settings"
+
+[node name="TitleScreenButton" type="Button" parent="PauseMenu/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Title Screen"
+
+[node name="ExitButton" type="Button" parent="PauseMenu/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Quit Game"
+
+[node name="SettingUI" parent="." instance=ExtResource("1_oj67h")]
+visible = false
+layout_mode = 1
+
+[connection signal="mouse_entered" from="PauseMenu/Panel/VBoxContainer/ResumeButton" to="." method="play_ui_hover_sound"]
+[connection signal="pressed" from="PauseMenu/Panel/VBoxContainer/ResumeButton" to="." method="_on_resume_button_pressed"]
+[connection signal="mouse_entered" from="PauseMenu/Panel/VBoxContainer/SettingButton" to="." method="play_ui_hover_sound"]
+[connection signal="pressed" from="PauseMenu/Panel/VBoxContainer/SettingButton" to="." method="_on_setting_button_pressed"]
+[connection signal="mouse_entered" from="PauseMenu/Panel/VBoxContainer/TitleScreenButton" to="." method="play_ui_hover_sound"]
+[connection signal="pressed" from="PauseMenu/Panel/VBoxContainer/TitleScreenButton" to="." method="_on_title_screen_button_pressed"]
+[connection signal="mouse_entered" from="PauseMenu/Panel/VBoxContainer/ExitButton" to="." method="play_ui_hover_sound"]
+[connection signal="pressed" from="PauseMenu/Panel/VBoxContainer/ExitButton" to="." method="_on_exit_button_pressed"]

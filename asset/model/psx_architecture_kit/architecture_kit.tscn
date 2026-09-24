@@ -1,0 +1,113 @@
+[gd_scene load_steps=24 format=3 uid="uid://oians5nti5c4"]
+
+[ext_resource type="PackedScene" uid="uid://b8aoph5bornyg" path="res://asset/model/psx_architecture_kit/Architecture Kit.gltf" id="1_a6q6j"]
+[ext_resource type="Texture2D" uid="uid://bc5uo4vsfjp85" path="res://asset/model/psx_architecture_kit/Textures/Architecture/Floor01_C.png" id="2_kqxdp"]
+[ext_resource type="Texture2D" uid="uid://1wyvpx4ex3qm" path="res://asset/model/psx_architecture_kit/Textures/Props/Props_Rugs_C.png" id="3_4jboj"]
+[ext_resource type="Texture2D" uid="uid://btx5yvcm7nqrh" path="res://asset/model/psx_architecture_kit/Textures/Architecture/Wall01_C.png" id="3_cii04"]
+[ext_resource type="Texture2D" uid="uid://d0nqhr4nqkjd6" path="res://asset/model/psx_architecture_kit/Textures/Props/Props_Bed.png" id="3_vgtu1"]
+[ext_resource type="Texture2D" uid="uid://bdqtv4cwlkf2v" path="res://asset/model/psx_architecture_kit/Textures/Architecture/Doors02_CD.png" id="4_pph8q"]
+[ext_resource type="Texture2D" uid="uid://eqndaq4lkbh3" path="res://asset/model/psx_architecture_kit/Textures/Props/Props_BedsideTable_C.png" id="4_qw42l"]
+[ext_resource type="Texture2D" uid="uid://bxiqyhgaayxil" path="res://asset/model/psx_architecture_kit/Textures/Architecture/Doors01_CD.png" id="5_r5gss"]
+[ext_resource type="Texture2D" uid="uid://d3ly5f2726qm7" path="res://asset/model/psx_architecture_kit/Textures/Architecture/Stairs01_C.png" id="6_of1ud"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l1t4d"]
+albedo_texture = ExtResource("2_kqxdp")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qbw7w"]
+albedo_texture = ExtResource("3_cii04")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_igws3"]
+albedo_texture = ExtResource("4_pph8q")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qohqk"]
+albedo_texture = ExtResource("5_r5gss")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wpleb"]
+albedo_texture = ExtResource("5_r5gss")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7oskp"]
+albedo_texture = ExtResource("5_r5gss")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_822ot"]
+albedo_texture = ExtResource("6_of1ud")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xeehy"]
+albedo_texture = ExtResource("3_4jboj")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mamhj"]
+albedo_texture = ExtResource("3_vgtu1")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pi4sy"]
+albedo_texture = ExtResource("3_vgtu1")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gocfe"]
+albedo_texture = ExtResource("4_qw42l")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4kxrt"]
+albedo_texture = ExtResource("4_qw42l")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qnn6m"]
+albedo_texture = ExtResource("3_4jboj")
+
+[sub_resource type="BoxMesh" id="BoxMesh_4w6in"]
+
+[node name="Architecture Kit" instance=ExtResource("1_a6q6j")]
+
+[node name="Floor_3x3" parent="." index="0"]
+surface_material_override/0 = SubResource("StandardMaterial3D_l1t4d")
+
+[node name="Wall_Window_3x3_03" parent="." index="12"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Wall_Window_3x3_04" parent="." index="13"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Wall_Window_3x3_05" parent="." index="14"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Wall_Window_3x3_06" parent="." index="15"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Wall_Window_3x3_07" parent="." index="16"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Wall_Window_3x3_08" parent="." index="17"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qbw7w")
+
+[node name="Door01" parent="." index="49"]
+surface_material_override/0 = SubResource("StandardMaterial3D_igws3")
+
+[node name="Door06" parent="." index="54"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qohqk")
+
+[node name="DoorHandle_Base" parent="." index="55"]
+surface_material_override/0 = SubResource("StandardMaterial3D_wpleb")
+
+[node name="DoorHandle_Handle" parent="DoorHandle_Base" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.38419e-07, 0.0273425, 0.022151)
+surface_material_override/0 = SubResource("StandardMaterial3D_7oskp")
+
+[node name="Stairs_Wide_Full" parent="." index="60"]
+surface_material_override/0 = SubResource("StandardMaterial3D_822ot")
+
+[node name="Props_Rug01" parent="." index="95"]
+surface_material_override/0 = SubResource("StandardMaterial3D_xeehy")
+
+[node name="Props_Bed" parent="." index="96"]
+surface_material_override/0 = SubResource("StandardMaterial3D_mamhj")
+
+[node name="Props_Mattress" parent="." index="97"]
+surface_material_override/0 = SubResource("StandardMaterial3D_pi4sy")
+
+[node name="Props_BedsideTable" parent="." index="98"]
+surface_material_override/0 = SubResource("StandardMaterial3D_gocfe")
+
+[node name="Props_BedsideTable_Drawer" parent="Props_BedsideTable" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.90735e-06, 0.328041, 0.00148153)
+surface_material_override/0 = SubResource("StandardMaterial3D_4kxrt")
+
+[node name="Props_Rug02" parent="." index="102"]
+surface_material_override/0 = SubResource("StandardMaterial3D_qnn6m")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." index="106"]
+mesh = SubResource("BoxMesh_4w6in")

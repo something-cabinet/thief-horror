@@ -1,0 +1,155 @@
+[gd_scene format=3 uid="uid://7s75qf3um0h0"]
+
+[ext_resource type="Script" uid="uid://y3dkjdtrjdd" path="res://entity/player/player.gd" id="1_rl0vi"]
+[ext_resource type="Texture2D" uid="uid://ddwxkjlbdh8hq" path="res://asset/sprite/blob_shadow.png" id="3_tgexf"]
+[ext_resource type="PackedScene" uid="uid://oai4dltwisn0" path="res://entity/weapon/gun/StarterPistol.tscn" id="3_wg1yd"]
+[ext_resource type="PackedScene" uid="uid://by6prw5q6j6sk" path="res://entity/player/ShakeableCamera.tscn" id="4_37fec"]
+[ext_resource type="Texture2D" uid="uid://b5e6b8k4p1iw0" path="res://asset/ui/default_crosshair.png" id="4_ymis7"]
+[ext_resource type="PackedScene" uid="uid://cd1tqjm2e87jy" path="res://entity/player/AimRay.tscn" id="5_dqbuo"]
+[ext_resource type="PackedScene" uid="uid://dq2l72hrdmbds" path="res://entity/weapon/gun/VectorSMG.tscn" id="5_gioix"]
+[ext_resource type="Texture2D" uid="uid://bhyt4cp422lbb" path="res://asset/ui/hitmarker_lg.png" id="5_nkt42"]
+[ext_resource type="PackedScene" uid="uid://byj1y3wrwtdtq" path="res://ui/PauseUI.tscn" id="5_srijb"]
+[ext_resource type="Script" uid="uid://802oee2j6xh8" path="res://addons/godot_state_charts/state_chart.gd" id="6_t33b7"]
+[ext_resource type="Script" uid="uid://co1hbqw2nlqwh" path="res://addons/godot_state_charts/compound_state.gd" id="7_1276k"]
+[ext_resource type="Script" uid="uid://cdhjq8k8av1mv" path="res://addons/godot_state_charts/atomic_state.gd" id="8_dkhcu"]
+[ext_resource type="Script" uid="uid://do3vrmlf3qx2n" path="res://addons/godot_state_charts/transition.gd" id="10_g5bf6"]
+[ext_resource type="PackedScene" uid="uid://b3vol18g8n2bt" path="res://entity/common/CharacterAudioPlayer3D.tscn" id="13_7vo7v"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_f0s2u"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_o6vus"]
+
+[node name="Player" type="CharacterBody3D" unique_id=816921455]
+script = ExtResource("1_rl0vi")
+max_air_jump = 0
+aim_ray_prefab = ExtResource("5_dqbuo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1415249266]
+shape = SubResource("CapsuleShape3D_f0s2u")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1016326781]
+visible = false
+mesh = SubResource("CapsuleMesh_o6vus")
+
+[node name="WallRaycast" type="RayCast3D" parent="." unique_id=301708273]
+target_position = Vector3(0, 0, -1)
+debug_shape_custom_color = Color(1, 0.988235, 0, 1)
+debug_shape_thickness = 5
+
+[node name="Neck" type="Node3D" parent="." unique_id=1161583963]
+
+[node name="ShakeableCamera" parent="Neck" unique_id=813124574 instance=ExtResource("4_37fec")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.66, 0)
+
+[node name="AimRecticle" type="TextureRect" parent="Neck/ShakeableCamera" unique_id=1532995085]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_ymis7")
+
+[node name="HitMarker" type="TextureRect" parent="Neck/ShakeableCamera" unique_id=937857644]
+modulate = Color(1, 0.976471, 0.388235, 1)
+texture_filter = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("5_nkt42")
+
+[node name="DebugLabel" type="Label" parent="Neck/ShakeableCamera" unique_id=1321077725]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 192.0
+offset_bottom = 64.0
+theme_override_font_sizes/font_size = 12
+text = "VSpeed: 0 u/s
+HSpeed: 0 u/s"
+
+[node name="GunContainer" type="Node3D" parent="Neck/ShakeableCamera" unique_id=1112067056]
+transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, 0.051, -0.1, -0.185)
+
+[node name="StarterPistol" parent="Neck/ShakeableCamera/GunContainer" unique_id=1258628417 instance=ExtResource("3_wg1yd")]
+
+[node name="VectorSMG" parent="Neck/ShakeableCamera/GunContainer" unique_id=1237007862 instance=ExtResource("5_gioix")]
+visible = false
+
+[node name="AimRay" parent="Neck/ShakeableCamera" unique_id=2065241242 instance=ExtResource("5_dqbuo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.000178993, -0.462722)
+
+[node name="OmniLight3D" type="OmniLight3D" parent="Neck/ShakeableCamera" unique_id=2139348496]
+light_color = Color(1, 0.964706, 0.686275, 1)
+
+[node name="DashDuration" type="Timer" parent="." unique_id=1407710525]
+editor_description = "How long the dash action last"
+wait_time = 0.2
+one_shot = true
+
+[node name="CoyoteTimer" type="Timer" parent="." unique_id=1238771192]
+wait_time = 0.2
+one_shot = true
+
+[node name="Decal" type="Decal" parent="." unique_id=759316702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.27613, 0)
+texture_albedo = ExtResource("3_tgexf")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1858978385]
+process_mode = 3
+
+[node name="PauseUI" parent="CanvasLayer" unique_id=1341651505 instance=ExtResource("5_srijb")]
+visible = false
+
+[node name="StateChart" type="Node" parent="." unique_id=457008038]
+script = ExtResource("6_t33b7")
+
+[node name="Root" type="Node" parent="StateChart" unique_id=1667732787]
+script = ExtResource("7_1276k")
+initial_state = NodePath("Grounded")
+
+[node name="Grounded" type="Node" parent="StateChart/Root" unique_id=1995104842]
+editor_description = "This state is active when the player is on the ground."
+script = ExtResource("8_dkhcu")
+
+[node name="onJump" type="Node" parent="StateChart/Root/Grounded" unique_id=562487793]
+editor_description = "When jumping become airborne and enable double-jump."
+script = ExtResource("10_g5bf6")
+to = NodePath("../../Airborne")
+event = &"jump"
+
+[node name="onAirborne" type="Node" parent="StateChart/Root/Grounded" unique_id=1171192714]
+editor_description = "When becoming airborne (e.g. through falling) move to airborne state."
+script = ExtResource("10_g5bf6")
+to = NodePath("../../Airborne")
+event = &"airborne"
+
+[node name="Airborne" type="Node" parent="StateChart/Root" unique_id=2065620253]
+script = ExtResource("8_dkhcu")
+
+[node name="onGrounded" type="Node" parent="StateChart/Root/Airborne" unique_id=292838752]
+script = ExtResource("10_g5bf6")
+to = NodePath("../../Grounded")
+event = &"grounded"
+
+[node name="CharacterAudioPlayer3D" parent="." unique_id=1690214825 instance=ExtResource("13_7vo7v")]
+
+[connection signal="timeout" from="DashDuration" to="." method="_on_dash_duration_timeout"]
+[connection signal="timeout" from="CoyoteTimer" to="." method="_on_coyote_timer_timeout"]
+[connection signal="state_input" from="StateChart/Root/Grounded" to="." method="_on_grounded_state_input"]
+[connection signal="state_physics_processing" from="StateChart/Root/Grounded" to="." method="_on_grounded_state_physics_processing"]
+[connection signal="state_entered" from="StateChart/Root/Airborne" to="." method="_on_airborne_state_entered"]
+[connection signal="state_input" from="StateChart/Root/Airborne" to="." method="_on_airborne_state_input"]
+[connection signal="state_physics_processing" from="StateChart/Root/Airborne" to="." method="_on_airborne_state_physics_processing"]

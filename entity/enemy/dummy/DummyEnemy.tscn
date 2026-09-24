@@ -1,0 +1,26 @@
+[gd_scene load_steps=7 format=3 uid="uid://d0wmejqbc8i1o"]
+
+[ext_resource type="Script" path="res://entity/enemy/enemy.gd" id="1_4qpav"]
+[ext_resource type="Resource" uid="uid://bssnvfuelykkw" path="res://entity/enemy/dummy/dummy.tres" id="2_1r4r8"]
+[ext_resource type="PackedScene" uid="uid://du8i8c6s2bmy7" path="res://entity/enemy/BloodSplatter.tscn" id="2_htbmu"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gjttf"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5c44c"]
+albedo_color = Color(1, 0.298039, 0.215686, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_sb38g"]
+material = SubResource("StandardMaterial3D_5c44c")
+
+[node name="DummyEnemy" type="CharacterBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.564, 0)
+collision_layer = 2
+script = ExtResource("1_4qpav")
+data = ExtResource("2_1r4r8")
+bloodsplatter = ExtResource("2_htbmu")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_gjttf")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_sb38g")

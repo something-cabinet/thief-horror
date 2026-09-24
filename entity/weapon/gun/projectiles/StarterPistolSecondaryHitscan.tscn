@@ -1,0 +1,31 @@
+[gd_scene load_steps=6 format=3 uid="uid://na8rt7u4d18y"]
+
+[ext_resource type="Script" path="res://entity/weapon/gun/projectiles/gun_hitscan.gd" id="1_d3ewk"]
+[ext_resource type="PackedScene" uid="uid://i7pid4y24r8b" path="res://entity/weapon/gun/vfx/BulletSpark.tscn" id="2_aml8l"]
+[ext_resource type="Texture2D" uid="uid://c1n6by1xuvwiu" path="res://asset/sprite/start_flash.png" id="3_mhbid"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qm4qf"]
+transparency = 1
+albedo_color = Color(1, 0.0823529, 0, 1)
+emission_enabled = true
+emission = Color(1, 0.0901961, 0, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_yehfg"]
+
+[node name="GunBaseHitscan" type="MeshInstance3D"]
+material_override = SubResource("StandardMaterial3D_qm4qf")
+mesh = SubResource("BoxMesh_yehfg")
+script = ExtResource("1_d3ewk")
+thickness = 6
+spark_effect = ExtResource("2_aml8l")
+
+[node name="Timer" type="Timer" parent="."]
+one_shot = true
+autostart = true
+
+[node name="ShotFlashStart" type="Sprite3D" parent="."]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0.5)
+texture = ExtResource("3_mhbid")
+
+[connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

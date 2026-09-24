@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="GunResource" load_steps=4 format=3 uid="uid://dvpqi7d2j8ui7"]
+
+[ext_resource type="Script" path="res://entity/weapon/gun/gun_resource.gd" id="1_3kw1f"]
+[ext_resource type="AudioStream" uid="uid://mc31yn052crk" path="res://asset/sfx/player/smg_vector_primary.wav" id="1_fbhrh"]
+[ext_resource type="AudioStream" uid="uid://dd7ajug4kf7hw" path="res://asset/sfx/player/smg_vector_secondary.wav" id="3_8fo46"]
+
+[resource]
+script = ExtResource("1_3kw1f")
+name = "Vector SMG"
+description = "High firerate gun with a powerful secondary piercing attack.
+
+LMB: Fire array of hitscan shots.
+RMB: Charge up to fire a 3-times ricochet hitscan shot."
+firerate = 10.0
+projectile_speed = 0.0
+is_hitscan = true
+primary_damage = 2
+primary_sfx = ExtResource("1_fbhrh")
+primary_bounce_time = 0
+primary_pierce = false
+primary_screenshake = 0.05
+secondary_damage = 25
+secondary_type = 1
+secondary_sfx = ExtResource("3_8fo46")
+secondary_cooldown = 2.0
+secondary_charge_time = 0.0
+secondary_bounce_time = 0
+secondary_pierce = true
+secondary_screenshake = 0.6

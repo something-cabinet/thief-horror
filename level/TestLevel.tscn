@@ -1,0 +1,138 @@
+[gd_scene format=3 uid="uid://bmm57jx2oq6fb"]
+
+[ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="1_i0lhh"]
+[ext_resource type="Material" uid="uid://p2sj02iixgy2" path="res://material/grid_mat.tres" id="2_32h3k"]
+[ext_resource type="Material" uid="uid://ckee7r277nvyg" path="res://material/grid_mat2.tres" id="3_mqr0u"]
+[ext_resource type="Environment" uid="uid://bnsi5blt3qbue" path="res://level/world_environment.tres" id="4_tl54g"]
+[ext_resource type="PackedScene" uid="uid://bcwkugn6v3oy7" path="res://addons/godot_state_charts/utilities/state_chart_debugger.tscn" id="5_cqfjv"]
+[ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="6_iohbr"]
+[ext_resource type="PackedScene" uid="uid://d0wmejqbc8i1o" path="res://entity/enemy/dummy/DummyEnemy.tscn" id="7_8w4jv"]
+
+[node name="TestLevel" type="Node3D" unique_id=1628326295]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=659258476]
+environment = ExtResource("4_tl54g")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1353951877]
+transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 6.98508, 0)
+layers = 3
+shadow_enabled = true
+shadow_opacity = 0.75
+
+[node name="CSGCombiner3D" type="CSGCombiner3D" parent="." unique_id=1038335219]
+use_collision = true
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1879319174]
+size = Vector3(100, 1, 100)
+material = ExtResource("2_32h3k")
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1420754577]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.62538, 1.04783, 1.59358)
+size = Vector3(5, 1, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="CSGCombiner3D" unique_id=137947114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.62538, 3.50146, 8.76647)
+size = Vector3(5, 1, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D9" type="CSGBox3D" parent="CSGCombiner3D" unique_id=145360836]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.31708, 3.50146, 3.70544)
+size = Vector3(5, 1, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D4" type="CSGBox3D" parent="CSGCombiner3D" unique_id=216765182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.00006, 5.66556, 8.76647)
+size = Vector3(5, 1, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D5" type="CSGBox3D" parent="CSGCombiner3D" unique_id=58798462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.328, 4.38059, 8.766)
+size = Vector3(5, 7.7579, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D6" type="CSGBox3D" parent="CSGCombiner3D" unique_id=330512547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5969, 6.69244, 8.766)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D7" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1862266162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.2952, 6.5213, 4.31616)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D11" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1471929920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.2952, 6.5213, -16.0899)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D13" type="CSGBox3D" parent="CSGCombiner3D/CSGBox3D11" unique_id=1061845685]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 4.46669, 0, 5.33251)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D15" type="CSGBox3D" parent="CSGCombiner3D/CSGBox3D11" unique_id=348754167]
+transform = Transform3D(1.91069e-15, -1, 4.37114e-08, -4.37114e-08, -4.37114e-08, -1, 1, 0, -4.37114e-08, 0.0664616, 5.35775, 5.33251)
+size = Vector3(10, 10.0919, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D12" type="CSGBox3D" parent="CSGCombiner3D/CSGBox3D11" unique_id=713472873]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00660706, -0.0184011, 9.67136)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D14" type="CSGBox3D" parent="CSGCombiner3D/CSGBox3D11" unique_id=1338032878]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -4.56914, 0, 4.89797)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D15" type="CSGBox3D" parent="CSGCombiner3D/CSGBox3D11/CSGBox3D14" unique_id=1452651262]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.519897, -4.25464, 0)
+operation = 2
+size = Vector3(2.82886, 3.49072, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D8" type="CSGBox3D" parent="CSGCombiner3D" unique_id=727574971]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 33.9682, 6.57814, 8.55146)
+size = Vector3(10, 12, 1)
+material = ExtResource("3_mqr0u")
+
+[node name="CSGBox3D10" type="CSGBox3D" parent="CSGCombiner3D" unique_id=341855717]
+transform = Transform3D(0.744894, -0.667183, 0, 0.667183, 0.744894, 0, 0, 0, 1, 14.8413, 7.00292, 5.70427)
+size = Vector3(4.42883, 1, 5)
+material = ExtResource("3_mqr0u")
+
+[node name="SpotLight3D" type="SpotLight3D" parent="." unique_id=1912703418]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, -0.870616, 4.6154, 5.74589)
+light_energy = 12.798
+spot_range = 20.0
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=391136469]
+
+[node name="StateChartDebugger" parent="CanvasLayer" unique_id=1587743903 instance=ExtResource("5_cqfjv")]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_bottom = 0.0
+offset_left = -376.0
+offset_bottom = 256.0
+grow_horizontal = 0
+grow_vertical = 1
+initial_node_to_watch = NodePath("../../Player")
+metadata/_edit_use_anchors_ = true
+
+[node name="Player" parent="." unique_id=1297880662 instance=ExtResource("1_i0lhh")]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 0, 1.91076, -6.26333)
+collision_layer = 4
+collision_mask = 3
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=2028407501]
+process_mode = 3
+stream = ExtResource("6_iohbr")
+autoplay = true
+bus = &"BGM"
+
+[node name="DummyEnemy" parent="." unique_id=860556714 instance=ExtResource("7_8w4jv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7455, 0)
+
+[node name="DummyEnemy2" parent="." unique_id=323460720 instance=ExtResource("7_8w4jv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0993, 1.7455, 0)

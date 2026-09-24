@@ -1,0 +1,35 @@
+[gd_scene load_steps=5 format=3 uid="uid://d3ulx8v6ei5uu"]
+
+[ext_resource type="Texture2D" uid="uid://bhpgbcxbfgent" path="res://asset/sprite/muzzle_flash.png" id="1_vxaw8"]
+[ext_resource type="Script" path="res://entity/weapon/gun/vfx/muzzle_flash.gd" id="2_5hqqh"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jnvrt"]
+atlas = ExtResource("1_vxaw8")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pldl2"]
+animations = [{
+"frames": [{
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_jnvrt")
+}],
+"loop": false,
+"name": &"default",
+"speed": 30.0
+}]
+
+[node name="MuzzleFlash" type="AnimatedSprite3D"]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
+texture_filter = 0
+sprite_frames = SubResource("SpriteFrames_pldl2")
+frame_progress = 1.0
+script = ExtResource("2_5hqqh")
+
+[node name="MuzzleFlashLight" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.968627, 0.682353, 1)
+light_energy = 3.0
+omni_range = 10.0
+
+[node name="MuzzleFlashTimer" type="Timer" parent="."]
+wait_time = 0.05
+one_shot = true

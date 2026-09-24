@@ -1,0 +1,140 @@
+[gd_scene format=3 uid="uid://baeg7c16aji2u"]
+
+[ext_resource type="Script" uid="uid://dysjtabm3ucy8" path="res://level/title_screen.gd" id="1_uqkmj"]
+[ext_resource type="PackedScene" uid="uid://biqm56x6ewbmo" path="res://ui/SettingUI.tscn" id="2_ontx6"]
+
+[node name="Titlescreen" type="Control" unique_id=401004313]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_uqkmj")
+
+[node name="TitleMenu" type="ColorRect" parent="." unique_id=397414565]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 81.0
+offset_right = 460.0
+grow_vertical = 2
+color = Color(0, 0, 0, 0.509804)
+
+[node name="TitleLabel" type="Label" parent="TitleMenu" unique_id=1657009215]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -158.5
+offset_top = 53.0
+offset_right = 157.5
+offset_bottom = 168.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 40
+text = "Lam 3D Godot Template"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TitleMenu" unique_id=891503428]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -102.5
+offset_top = 64.0
+offset_right = 97.5
+offset_bottom = 276.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StartButton" type="Button" parent="TitleMenu/VBoxContainer" unique_id=553328085]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Start"
+
+[node name="SettingButton" type="Button" parent="TitleMenu/VBoxContainer" unique_id=569234872]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Setting"
+
+[node name="CreditButton" type="Button" parent="TitleMenu/VBoxContainer" unique_id=1771576755]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Credit"
+
+[node name="QuitButton" type="Button" parent="TitleMenu/VBoxContainer" unique_id=1750078372]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Quit"
+
+[node name="VersionLabel" type="Label" parent="TitleMenu" unique_id=1261464683]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -76.0
+offset_top = -23.0
+offset_right = 76.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "v0.1"
+horizontal_alignment = 1
+
+[node name="CreditPanel" type="ColorRect" parent="." unique_id=1437146694]
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -726.0
+offset_top = 64.0
+offset_right = -150.0
+offset_bottom = 320.0
+grow_horizontal = 0
+grow_vertical = 2
+color = Color(0, 0, 0, 0.509804)
+
+[node name="RichTextLabel" type="Label" parent="CreditPanel" unique_id=480024039]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 24
+text = "Made with love by
+Programmer: A
+Musician: B
+Artist: C
+Story: D"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SettingUI" parent="." unique_id=1065356527 instance=ExtResource("2_ontx6")]
+visible = false
+layout_mode = 1
+offset_left = 464.0
+
+[connection signal="mouse_entered" from="TitleMenu/VBoxContainer/StartButton" to="." method="play_button_hover_sfx"]
+[connection signal="pressed" from="TitleMenu/VBoxContainer/StartButton" to="." method="_on_start_button_pressed"]
+[connection signal="mouse_entered" from="TitleMenu/VBoxContainer/SettingButton" to="." method="play_button_hover_sfx"]
+[connection signal="pressed" from="TitleMenu/VBoxContainer/SettingButton" to="." method="_on_setting_button_pressed"]
+[connection signal="mouse_entered" from="TitleMenu/VBoxContainer/CreditButton" to="." method="play_button_hover_sfx"]
+[connection signal="pressed" from="TitleMenu/VBoxContainer/CreditButton" to="." method="_on_credit_button_pressed"]
+[connection signal="mouse_entered" from="TitleMenu/VBoxContainer/QuitButton" to="." method="play_button_hover_sfx"]
+[connection signal="pressed" from="TitleMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]

@@ -1,0 +1,60 @@
+[gd_scene load_steps=9 format=3 uid="uid://i7pid4y24r8b"]
+
+[ext_resource type="Script" path="res://entity/common/self_destruct_3dparticle.gd" id="1_28egn"]
+
+[sub_resource type="Gradient" id="Gradient_w56hi"]
+offsets = PackedFloat32Array(0, 0.222749, 0.419431, 0.680095)
+colors = PackedColorArray(1, 0.979754, 0.536224, 1, 1, 0.968976, 0.0244693, 1, 1, 0.544708, 0.0127771, 1, 1, 0.0810753, 0, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_idfh0"]
+gradient = SubResource("Gradient_w56hi")
+
+[sub_resource type="Curve" id="Curve_6a1fe"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.755556, 0.5), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_iwupy"]
+curve = SubResource("Curve_6a1fe")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_k1q2q"]
+lifetime_randomness = 0.3
+angle_min = -30.0
+angle_max = 30.0
+direction = Vector3(0, 0, -1)
+initial_velocity_min = 3.0
+initial_velocity_max = 6.0
+angular_velocity_min = -45.0
+angular_velocity_max = 45.0
+linear_accel_min = -5.0
+linear_accel_max = -5.0
+scale_min = 0.75
+scale_max = 1.25
+scale_curve = SubResource("CurveTexture_iwupy")
+color_ramp = SubResource("GradientTexture1D_idfh0")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_p54np"]
+vertex_color_use_as_albedo = true
+emission_enabled = true
+rim_enabled = true
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_iy2t6"]
+material = SubResource("StandardMaterial3D_p54np")
+size = Vector2(0.2, 0.2)
+
+[node name="BulletSpark" type="GPUParticles3D"]
+emitting = false
+amount = 15
+one_shot = true
+explosiveness = 1.0
+randomness = 0.5
+visibility_aabb = AABB(-2.09474, -3.78992, -3.45481, 4.16517, 4.57921, 3.65482)
+process_material = SubResource("ParticleProcessMaterial_k1q2q")
+draw_pass_1 = SubResource("QuadMesh_iy2t6")
+script = ExtResource("1_28egn")
+
+[connection signal="finished" from="." to="." method="_on_finished"]
