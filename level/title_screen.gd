@@ -2,14 +2,18 @@ extends Control
 
 @onready var credit_panel: ColorRect = $CreditPanel
 @onready var setting_ui: SettingUI = $SettingUI
+@onready var start_button: Button = $TitleMenu/VBoxContainer/StartButton
 
 func _ready() -> void:
 	credit_panel.visible = false
 	setting_ui.visible = false
+	GameManager.prepare_first_level()
 
 func _on_start_button_pressed() -> void:
 	play_button_click_sfx()
-	GameManager.load_first_level()
+	start_button.disabled = true
+	start_button.text = "Loading..."
+	await GameManager.load_first_level()
 
 func _on_setting_button_pressed() -> void:
 	play_button_click_sfx()

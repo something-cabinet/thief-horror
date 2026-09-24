@@ -5,6 +5,10 @@ extends Node2D
 
 var pause_ui: PauseUI
 var player: Player
+var is_preparing_first_level := false
+
+var cached_first_level: Node
+var warmup_viewport: SubViewport
 
 # Setting
 var mouse_sensitivity: float = 50.0
@@ -25,8 +29,61 @@ var sfx_audio = 100
 var ui_audio = 100
 
 
-func load_first_level():
-    get_tree().change_scene_to_packed(level_list[0])
+func prepare_first_level() -> void:
+    if cached_first_level != null or is_preparing_first_level or level_list.is_empty():
+        return
+
+    is_preparing_first_level = true
+    await get_tree().process_frame
+
+    warmup_viewport = SubViewport.new()
+    warmup_viewport.name = "LevelWarmupViewport"
+    warmup_viewport.size = Vector2i(64, 64)
+    warmup_viewport.own_world_3d = true
+    warmup_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+    add_child(warmup_viewport)
+
+    cached_first_level = level_list[0].instantiate()
+    cached_first_level.process_mode = Node.PROCESS_MODE_DISABLED
+    warmup_viewport.add_child(cached_first_level)
+
+    # Allow deferred projectile/particle prewarming to complete offscreen.
+    await get_tree().process_frame
+    await get_tree().process_frame
+    warmup_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+    set_scene_audio_active(cached_first_level, false)
+    is_preparing_first_level = false
+
+func load_first_level() -> void:
+    # Always yield once so callers can draw a loading state before any fallback work.
+    await get_tree().process_frame
+    if cached_first_level == null:
+        prepare_first_level()
+        while cached_first_level == null or is_preparing_first_level:
+            await get_tree().process_frame
+
+    var previous_scene := get_tree().current_scene
+    cached_first_level.reparent(get_tree().root, false)
+    cached_first_level.process_mode = Node.PROCESS_MODE_INHERIT
+    get_tree().current_scene = cached_first_level
+    set_scene_audio_active(cached_first_level, true)
+    Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+    cached_first_level = null
+    if warmup_viewport != null:
+        warmup_viewport.queue_free()
+        warmup_viewport = null
+    if previous_scene != null:
+        previous_scene.queue_free()
+
+func set_scene_audio_active(node: Node, active: bool) -> void:
+    if node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D:
+        if active and node.autoplay:
+            node.play()
+        else:
+            node.stop()
+    for child in node.get_children():
+        set_scene_audio_active(child, active)
 
 func go_back_to_title_screen():
     get_tree().paused = false

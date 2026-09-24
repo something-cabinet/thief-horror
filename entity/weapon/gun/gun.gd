@@ -15,6 +15,12 @@ class_name Gun
 
 var start_charge_timestamp = 0
 var is_charging = false
+var primary_projectile_color := Color.WHITE
+var secondary_projectile_color := Color.WHITE
+
+func _ready() -> void:
+    primary_projectile_color = get_projectile_color(primary_projectile)
+    secondary_projectile_color = get_projectile_color(secondary_projetile)
 
 func play_primary_attack_anim():
     anim_state_machine.start("primary_attack")
@@ -47,14 +53,18 @@ func try_secondary_attack(only_check=false) -> bool:
 
 func play_muzzle_flash(is_secondary_attack=false):
     if muzzle_flash:
-        var tmp: GunHitscan
-        if not is_secondary_attack:
-            tmp = primary_projectile.instantiate()
-        else:
-            tmp = secondary_projetile.instantiate()
-        var light_color = tmp.get_projectile_color()
+        var light_color = secondary_projectile_color if is_secondary_attack else primary_projectile_color
         muzzle_flash.flash(light_color)
-        tmp.queue_free()
+
+func get_projectile_color(projectile_scene: PackedScene) -> Color:
+    if projectile_scene == null:
+        return Color.WHITE
+    var projectile := projectile_scene.instantiate() as GunHitscan
+    if projectile == null:
+        return Color.WHITE
+    var color := projectile.get_projectile_color()
+    projectile.free()
+    return color
 
 func check_if_animation_playing(anim_name: String):
     return anim_state_machine.get_current_node() == anim_name
