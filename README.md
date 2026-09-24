@@ -1,3 +1,3 @@
-# Roguelite FPS Hades Cat
+# Thief Horror Game
 
-<https://trello.com/b/Orynu7Fd/roguelike-hades-fps-cat>
+Need godot 4.7
