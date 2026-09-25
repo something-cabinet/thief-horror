@@ -238,8 +238,7 @@ func _throw_selected_item() -> void:
 	dropped.item_mass = float(item.get("mass", 0.5))
 	get_parent().add_child(dropped)
 	var throw_direction := (-player_camera.camera.global_basis.z + Vector3.UP * 0.12).normalized()
-	var held_rotation := _held_item_rotation(item) * (PI / 180.0)
-	dropped.global_basis = player_camera.camera.global_basis * Basis.from_euler(held_rotation)
+	dropped.global_basis = player_camera.camera.global_basis * _held_item_basis(item)
 	dropped.global_position = (
 		player_camera.camera.global_position
 		+ throw_direction * THROW_SPAWN_DISTANCE
@@ -412,7 +411,7 @@ func _refresh_held_item() -> void:
 	if model_scene == null:
 		return
 	var holder := Node3D.new()
-	holder.rotation_degrees = _held_item_rotation(item)
+	holder.basis = _held_item_basis(item)
 	held_item_pivot.add_child(holder)
 	var model := model_scene.instantiate() as Node3D
 	holder.add_child(model)
@@ -431,13 +430,18 @@ func _selected_item_is_gun() -> bool:
 	return inventory[selected_item_slot].get("kind", "") == "gun"
 
 
-func _held_item_rotation(item: Dictionary) -> Vector3:
+func _held_item_basis(item: Dictionary) -> Basis:
 	var item_id := StringName(item.get("id", &""))
+	var rotation_degrees := Vector3(-12, 24, -4)
 	if item_id == &"notebook":
-		return Vector3(78, 192, -4)
-	if item_id == &"cigarettes" or item_id == &"antique_radio":
-		return Vector3(-12, 204, -4)
-	return Vector3(-12, 24, -4)
+		rotation_degrees = Vector3(78, 12, -4)
+	elif item_id == &"cigarettes" or item_id == &"antique_radio":
+		rotation_degrees = Vector3(-12, 204, -4)
+	var held_basis := Basis.from_euler(rotation_degrees * (PI / 180.0))
+	if item_id == &"notebook":
+		# Spin within the cover plane without flipping the front face away.
+		held_basis *= Basis(Vector3.UP, PI)
+	return held_basis
 
 
 func _calculate_model_bounds(root: Node3D) -> AABB:
