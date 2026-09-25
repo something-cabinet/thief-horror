@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 EnumAutoload="*res://singleton/enum_autoload.gd"
 SoundManager="*uid://bk0j3bt5no2jk"
 GameManager="*res://singleton/GameManager.tscn"
+SaveManager="*res://singleton/save_manager.gd"
 DialogueManager="*uid://c3rodes2l3gxb"
 
 [dialogue_manager]

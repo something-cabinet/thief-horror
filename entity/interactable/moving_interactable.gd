@@ -65,7 +65,7 @@ func interact(actor: Node3D) -> bool:
 func get_interaction_prompt() -> String:
 	if Time.get_ticks_msec() < blocked_message_until_msec:
 		return "Move clear of %s" % display_name
-	return "[E] Close %s" % display_name if is_open else "[E] Open %s" % display_name
+	return InputPrompt.format(("Close %s" if is_open else "Open %s") % display_name)
 
 
 func set_highlighted(highlighted: bool) -> void:

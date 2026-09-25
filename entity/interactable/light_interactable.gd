@@ -44,7 +44,7 @@ func interact(_actor: Node3D) -> bool:
 func get_interaction_prompt() -> String:
 	if is_flickering:
 		return ""
-	return "[E] Turn off %s" % display_name if is_on else "[E] Turn on %s" % display_name
+	return InputPrompt.format(("Turn off %s" if is_on else "Turn on %s") % display_name)
 
 
 func set_highlighted(highlighted: bool) -> void:

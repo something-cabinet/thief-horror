@@ -13,7 +13,7 @@ func _ready() -> void:
 
 
 func get_interaction_prompt() -> String:
-	return "[E] Enter %s" % display_name
+	return InputPrompt.format("Enter %s" % display_name)
 
 
 func interact(_player: Node) -> void:

@@ -283,11 +283,10 @@ func _update_interaction_target() -> void:
 			):
 				candidate = collider
 	_set_focused_interactable(candidate)
-	if Time.get_ticks_msec() < dev_probe_message_until_msec:
-		hotbar.set_prompt(dev_probe_message)
-	elif not dev_probe_message.is_empty():
+	if not dev_probe_message.is_empty() and Time.get_ticks_msec() >= dev_probe_message_until_msec:
 		dev_probe_message = ""
-		_refresh_interaction_prompt()
+	# Refresh every frame so prompts pick up keybinds changed in the settings menu.
+	_refresh_interaction_prompt()
 
 
 func _set_focused_interactable(candidate: Node3D) -> void:

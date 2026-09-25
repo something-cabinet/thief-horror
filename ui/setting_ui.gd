@@ -28,7 +28,7 @@ class_name SettingUI
 @onready var keybind_container: Control = %KeybindingSection
 
 var pause_ui: PauseUI
-var keybindable_action_list = {
+const KEYBINDABLE_ACTION_LIST = {
 	"up": "Move forward",
 	"down": "Move backward",
 	"left": "Move left",
@@ -90,6 +90,11 @@ func _ready() -> void:
 	ui_value.text = "{0}".format([GameManager.ui_audio])
 
 	create_keybind_buttons()
+	visibility_changed.connect(_on_visibility_changed)
+
+func _on_visibility_changed() -> void:
+	if not is_visible_in_tree():
+		SaveManager.save_setting_config()
 
 func _input(event):
 	if is_remapping:
@@ -98,10 +103,11 @@ func _input(event):
 				event.double_click = false
 			InputMap.action_erase_events(action_to_remap)
 			InputMap.action_add_event(action_to_remap, event)
-			remapping_button.input_button.text = event.as_text().trim_suffix(" (Physical)")
+			remapping_button.input_button.text = InputPrompt.event_label(event)
 			is_remapping = false
 			action_to_remap = null
 			remapping_button = null
+			SaveManager.save_setting_config()
 			accept_event()
 
 func open_menu():
@@ -214,14 +220,13 @@ func create_keybind_buttons():
 	for i in range(keybind_container.get_child_count()):
 		if i > 1:
 			keybind_container.get_child(i).queue_free()
-	InputMap.load_from_project_settings()
-	for action in keybindable_action_list:
+	for action in KEYBINDABLE_ACTION_LIST:
 		var button_inst: KeybindButton = keybind_button_prefab.instantiate()
 		keybind_container.add_child(button_inst)
-		button_inst.action_label.text = keybindable_action_list[action]
+		button_inst.action_label.text = KEYBINDABLE_ACTION_LIST[action]
 		var events = InputMap.action_get_events(action)
 		if events.size() > 0:
-			button_inst.input_button.text = events[0].as_text().trim_suffix(" (Physical)")
+			button_inst.input_button.text = InputPrompt.event_label(events[0])
 		else:
 			button_inst.input_button.text = ""
 		button_inst.input_button.pressed.connect(_on_input_button_pressed.bind(button_inst, action))
@@ -236,7 +241,9 @@ func _on_input_button_pressed(button: KeybindButton, action):
 		button.input_button.text = "Press key to bind..."
 
 func _on_reset_keybind_button_pressed():
+	InputMap.load_from_project_settings()
 	create_keybind_buttons()
+	SaveManager.save_setting_config()
 
 
 func _on_tab_container_tab_clicked(_tab: int) -> void:

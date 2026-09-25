@@ -146,7 +146,7 @@ func interact(player: Player) -> bool:
 
 
 func get_interaction_prompt() -> String:
-	return "[E] Collect %s" % display_name
+	return InputPrompt.format("Collect %s" % display_name)
 
 
 func set_highlighted(highlighted: bool) -> void:
