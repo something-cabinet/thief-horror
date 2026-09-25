@@ -1,10 +1,21 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bwkmoxw0j77nn"]
 
-[ext_resource type="Script" path="res://entity/item/pickup_item.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://j6yv0chvh34i" path="res://entity/item/pickup_item.gd" id="1_script"]
 
-[node name="PickupItem" type="RigidBody3D"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_ys074"]
+
+[node name="PickupItem" type="RigidBody3D" unique_id=404496256]
 collision_layer = 8
 collision_mask = 9
 script = ExtResource("1_script")
+item_id = null
+display_name = null
+item_kind = null
+gun_slot = null
+display_size = null
+item_mass = null
 
-[node name="ModelAnchor" type="Node3D" parent="."]
+[node name="ModelAnchor" type="Node3D" parent="." unique_id=1766730255]
+
+[node name="TemporaryCollider" type="CollisionShape3D" parent="." unique_id=1830777393]
+shape = SubResource("SphereShape3D_ys074")

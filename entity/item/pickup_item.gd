@@ -16,6 +16,7 @@ const FLOOR_GUARD_SAMPLE_OFFSET := 0.12
 @export_range(0.05, 10.0, 0.05) var item_mass := 0.5
 
 @onready var model_anchor: Node3D = $ModelAnchor
+@onready var temporary_collider: CollisionShape3D = $TemporaryCollider # To avoid Godot warning
 
 var model_instance: Node3D
 var normalized_bounds := AABB()
@@ -25,6 +26,7 @@ var has_previous_physics_transform := false
 
 
 func _ready() -> void:
+	temporary_collider.queue_free()
 	collision_layer = 8
 	collision_mask = 9
 	mass = item_mass
@@ -60,11 +62,9 @@ func _physics_process(_delta: float) -> void:
 		if not floor_hit.is_empty():
 			var floor_normal: Vector3 = floor_hit.normal
 			var support_extent := _support_extent_along(floor_normal, current_transform.basis)
-			var penetration: float = (
-				support_extent
-				- (current_transform.origin - floor_hit.position).dot(floor_normal)
-				+ 0.003
-			)
+			var floor_position: Vector3 = floor_hit.position
+			var floor_distance := (current_transform.origin - floor_position).dot(floor_normal)
+			var penetration := support_extent - floor_distance + 0.003
 			current_transform.origin += floor_normal * penetration
 			global_transform = current_transform
 			var inward_speed := linear_velocity.dot(floor_normal)
@@ -146,7 +146,7 @@ func interact(player: Player) -> bool:
 
 
 func get_interaction_prompt() -> String:
-	return "[C] Collect %s" % display_name
+	return "[E] Collect %s" % display_name
 
 
 func set_highlighted(highlighted: bool) -> void:
@@ -160,7 +160,7 @@ func _prepare_model() -> void:
 		return
 	var scale_factor := display_size / longest_side
 	model_instance.scale = Vector3.ONE * scale_factor
-	model_instance.position = -bounds.get_center() * scale_factor
+	model_instance.position = - bounds.get_center() * scale_factor
 	actual_normalized_size = bounds.size * scale_factor
 	var minimum_collision_size := (
 		NOTEBOOK_COLLISION_THICKNESS
@@ -174,7 +174,7 @@ func _prepare_model() -> void:
 			minimum_collision_size - actual_normalized_size.y
 		) * 0.5
 	normalized_bounds = AABB(
-		-bounds.size * scale_factor * 0.5,
+		- bounds.size * scale_factor * 0.5,
 		Vector3(
 			maxf(bounds.size.x * scale_factor, minimum_collision_size),
 			maxf(bounds.size.y * scale_factor, minimum_collision_size),

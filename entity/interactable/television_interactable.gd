@@ -31,7 +31,7 @@ func interact(_actor: Node3D) -> bool:
 
 
 func get_interaction_prompt() -> String:
-	return "[C] Turn off television" if is_on else "[C] Turn on television"
+	return "[E] Turn off television" if is_on else "[E] Turn on television"
 
 
 func set_highlighted(highlighted: bool) -> void:

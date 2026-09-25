@@ -148,7 +148,7 @@ func _input(event):
 			return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
-	if event.is_action_pressed("collect"):
+	if event.is_action_pressed("interact"):
 		_try_interact_focused()
 		get_viewport().set_input_as_handled()
 		return
@@ -228,7 +228,7 @@ func _throw_selected_item() -> void:
 	if item.is_empty():
 		return
 	var dropped := pickup_item_scene.instantiate() as PickupItem
-	dropped.item_id = item.get("id", &"") as StringName
+	dropped.item_id = StringName(item.get("id", &""))
 	dropped.display_name = String(item.get("name", "Item"))
 	dropped.item_kind = StringName(item.get("kind", &"item"))
 	dropped.gun_slot = int(item.get("gun_slot", -1))
@@ -422,7 +422,7 @@ func _refresh_held_item() -> void:
 		return
 	var scale_factor := 0.34 / longest_side
 	model.scale = Vector3.ONE * scale_factor
-	model.position = -bounds.get_center() * scale_factor
+	model.position = - bounds.get_center() * scale_factor
 
 
 func _selected_item_is_gun() -> bool:
@@ -675,9 +675,9 @@ func _log_stuck_movement(movement_start: Vector3, requested_motion: Vector3) -> 
 
 	var log_line := (
 		"PLAYER_STUCK xyz=(%.3f, %.3f, %.3f) input=(%.2f, %.2f) "
-		+ "requested=(%.3f, %.3f) actual=%.4f on_floor=%s step=%s "
-		+ "step_result=\"%s\" pitch_deg=%.1f yaw_deg=%.1f blocker=%s "
-		+ "contact=(%.3f, %.3f, %.3f) normal=(%.3f, %.3f, %.3f)"
+		+"requested=(%.3f, %.3f) actual=%.4f on_floor=%s step=%s "
+		+"step_result=\"%s\" pitch_deg=%.1f yaw_deg=%.1f blocker=%s "
+		+"contact=(%.3f, %.3f, %.3f) normal=(%.3f, %.3f, %.3f)"
 	) % [
 			global_position.x, global_position.y, global_position.z,
 			raw_input_dir.x, raw_input_dir.y,

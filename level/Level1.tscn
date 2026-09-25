@@ -1,18 +1,18 @@
-[gd_scene load_steps=16 format=3 uid="uid://c1bh7fpi21j3r"]
+[gd_scene format=3 uid="uid://c1bh7fpi21j3r"]
 
 [ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="1_player"]
 [ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="2_ambience"]
 [ext_resource type="PackedScene" path="res://level/AbandonedHouseMap.tscn" id="3_map"]
 [ext_resource type="PackedScene" path="res://level/Rain.tscn" id="4_rain"]
-[ext_resource type="PackedScene" path="res://entity/item/PickupItem.tscn" id="5_pickup"]
-[ext_resource type="PackedScene" path="res://asset/model/items/models/ps1_brass_bankers_desk_lamp.glb" id="6_lamp_model"]
-[ext_resource type="Texture2D" path="res://asset/model/items/icons/ps1_brass_bankers_desk_lamp.png" id="7_lamp_icon"]
-[ext_resource type="PackedScene" path="res://asset/model/items/models/ps1_antique_radio.glb" id="8_radio_model"]
-[ext_resource type="Texture2D" path="res://asset/model/items/icons/ps1_antique_radio.png" id="9_radio_icon"]
-[ext_resource type="PackedScene" path="res://asset/model/items/models/cigs_carton.glb" id="10_cigs_model"]
-[ext_resource type="Texture2D" path="res://asset/model/items/icons/cigs_carton.png" id="11_cigs_icon"]
-[ext_resource type="PackedScene" path="res://asset/model/items/models/ps1_notebook.glb" id="12_notebook_model"]
-[ext_resource type="Texture2D" path="res://asset/model/items/icons/ps1_notebook.png" id="13_notebook_icon"]
+[ext_resource type="PackedScene" uid="uid://bwkmoxw0j77nn" path="res://entity/item/PickupItem.tscn" id="5_pickup"]
+[ext_resource type="PackedScene" uid="uid://c815tq6awnsau" path="res://asset/model/items/models/ps1_brass_bankers_desk_lamp.glb" id="6_lamp_model"]
+[ext_resource type="Texture2D" uid="uid://dhlcexnn7m1e0" path="res://asset/model/items/icons/ps1_brass_bankers_desk_lamp.png" id="7_lamp_icon"]
+[ext_resource type="PackedScene" uid="uid://pphy7l5f3dwq" path="res://asset/model/items/models/ps1_antique_radio.glb" id="8_radio_model"]
+[ext_resource type="Texture2D" uid="uid://cyau772t8mu28" path="res://asset/model/items/icons/ps1_antique_radio.png" id="9_radio_icon"]
+[ext_resource type="PackedScene" uid="uid://p6566vvmagro" path="res://asset/model/items/models/cigs_carton.glb" id="10_cigs_model"]
+[ext_resource type="Texture2D" uid="uid://dchvdhkahylg6" path="res://asset/model/items/icons/cigs_carton.png" id="11_cigs_icon"]
+[ext_resource type="PackedScene" uid="uid://claak8pjepeu" path="res://asset/model/items/models/ps1_notebook.glb" id="12_notebook_model"]
+[ext_resource type="Texture2D" uid="uid://bqhyo2ru7ibl2" path="res://asset/model/items/icons/ps1_notebook.png" id="13_notebook_icon"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -39,73 +39,79 @@ fog_density = 0.016
 fog_height = 1.0
 fog_height_density = 0.08
 
-[node name="Level1" type="Node3D"]
+[node name="Level1" type="Node3D" unique_id=304480321]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=164775796]
 environment = SubResource("Environment_house")
 
-[node name="Moonlight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-52, -28, 0)
+[node name="Moonlight" type="DirectionalLight3D" parent="." unique_id=1084772845]
+transform = Transform3D(0.88294756, 0.36994863, -0.2890356, 0, 0.6156615, 0.7880107, 0.46947157, -0.6957722, 0.5435968, 0, 0, 0)
 light_color = Color(0.38, 0.48, 0.7, 1)
 light_energy = 0.38
 shadow_enabled = true
 shadow_opacity = 0.72
 
-[node name="AbandonedHouseMap" parent="." instance=ExtResource("3_map")]
+[node name="AbandonedHouseMap" parent="." unique_id=231888342 instance=ExtResource("3_map")]
 
-[node name="Collectibles" type="Node3D" parent="."]
+[node name="Collectibles" type="Node3D" parent="." unique_id=358798793]
 
-[node name="Cigarettes" parent="Collectibles" instance=ExtResource("5_pickup")]
-position = Vector3(-25.942, 0.839, -119.208)
-rotation_degrees = Vector3(0, 24, 0)
+[node name="Cigarettes" parent="Collectibles" unique_id=1435852534 instance=ExtResource("5_pickup")]
+transform = Transform3D(0.9135454, 0, 0.40673664, 0, 1, 0, -0.40673664, 0, 0.9135454, -25.942, 0.839, -119.208)
 item_id = &"cigarettes"
 display_name = "Cigarettes"
+item_kind = &"item"
+gun_slot = -1
 model_scene = ExtResource("10_cigs_model")
 icon = ExtResource("11_cigs_icon")
 display_size = 0.48
 item_mass = 0.2
 
-[node name="BankersLamp" parent="Collectibles" instance=ExtResource("5_pickup")]
-position = Vector3(-31.62, 1.196, -121.436)
-rotation_degrees = Vector3(0, -35, 0)
+[node name="BankersLamp" parent="Collectibles" unique_id=50667584 instance=ExtResource("5_pickup")]
+transform = Transform3D(0.81915206, 0, -0.57357645, 0, 1, 0, 0.57357645, 0, 0.81915206, -31.62, 1.196, -121.436)
 item_id = &"bankers_lamp"
 display_name = "Banker's Lamp"
+item_kind = &"item"
+gun_slot = -1
 model_scene = ExtResource("6_lamp_model")
 icon = ExtResource("7_lamp_icon")
 display_size = 0.65
 item_mass = 2.2
 
-[node name="AntiqueRadio" parent="Collectibles" instance=ExtResource("5_pickup")]
-position = Vector3(-44.5, 2.5, -126.245)
-rotation_degrees = Vector3(0, 82, 0)
+[node name="AntiqueRadio" parent="Collectibles" unique_id=1987857875 instance=ExtResource("5_pickup")]
+transform = Transform3D(0.1391731, 0, 0.99026805, 0, 1, 0, -0.99026805, 0, 0.1391731, -44.5, 2.5, -126.245)
 item_id = &"antique_radio"
 display_name = "Antique Radio"
+item_kind = &"item"
+gun_slot = -1
 model_scene = ExtResource("8_radio_model")
 icon = ExtResource("9_radio_icon")
 display_size = 0.62
 item_mass = 3.0
 
-[node name="Notebook" parent="Collectibles" instance=ExtResource("5_pickup")]
-position = Vector3(-53.0, 0.85, -121.4)
-rotation_degrees = Vector3(0, 90, 0)
+[node name="Notebook" parent="Collectibles" unique_id=1431814119 instance=ExtResource("5_pickup")]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -53, 0.85, -121.4)
 item_id = &"notebook"
 display_name = "Notebook"
+item_kind = &"item"
+gun_slot = -1
 model_scene = ExtResource("12_notebook_model")
 icon = ExtResource("13_notebook_icon")
 display_size = 0.5
 item_mass = 0.35
 
-[node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(-51.526, -0.187, -104.284)
-rotation_degrees = Vector3(0, -40.6, 0)
+[node name="Player" parent="." unique_id=458969610 instance=ExtResource("1_player")]
+transform = Transform3D(0.7592713, 0, -0.6507742, 0, 1, 0, 0.6507742, 0, 0.7592713, -51.526, -0.187, -104.284)
 collision_layer = 4
 collision_mask = 3
+dash_cd = null
+max_step_height = null
 initial_camera_pitch_degrees = 1.3
 
-[node name="Rain" parent="." instance=ExtResource("4_rain")]
+[node name="Rain" parent="." unique_id=747269824 instance=ExtResource("4_rain")]
 
-[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1020007244]
 process_mode = 3
 stream = ExtResource("2_ambience")
+volume_db = -9.0
 autoplay = true
 bus = &"BGM"
