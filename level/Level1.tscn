@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" uid="uid://dchvdhkahylg6" path="res://asset/model/items/icons/cigs_carton.png" id="11_cigs_icon"]
 [ext_resource type="PackedScene" uid="uid://claak8pjepeu" path="res://asset/model/items/models/ps1_notebook.glb" id="12_notebook_model"]
 [ext_resource type="Texture2D" uid="uid://bqhyo2ru7ibl2" path="res://asset/model/items/icons/ps1_notebook.png" id="13_notebook_icon"]
+[ext_resource type="PackedScene" uid="uid://c8hvb8i1r5ukd" path="res://entity/interactable/TrapDoor.tscn" id="16_cbgcm"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -117,3 +118,6 @@ stream = ExtResource("2_ambience")
 volume_db = -9.0
 autoplay = true
 bus = &"BGM"
+
+[node name="Trapdoor" parent="." unique_id=1677140709 instance=ExtResource("16_cbgcm")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.340992, -1.0946296, -106.73688)

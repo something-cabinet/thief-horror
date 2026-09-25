@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://c8hvb8i1r5ukd"]
+
+[ext_resource type="Script" uid="uid://sfa12o76guow" path="res://entity/interactable/trap_door.gd" id="2_trapd"]
+[ext_resource type="Texture2D" uid="uid://chhcb8l64cq3x" path="res://asset/model/abandoned_house/source/Models/Madera1.jpg" id="1_h5hnh"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ys074"]
+size = Vector3(1, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_740uj"]
+albedo_texture = ExtResource("1_h5hnh")
+
+[sub_resource type="BoxMesh" id="BoxMesh_ys074"]
+material = SubResource("StandardMaterial3D_740uj")
+size = Vector3(1, 0.1, 1)
+
+[node name="TrapDoor" type="StaticBody3D" unique_id=1677140709]
+script = ExtResource("2_trapd")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=102542602]
+shape = SubResource("BoxShape3D_ys074")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=125171447]
+mesh = SubResource("BoxMesh_ys074")
