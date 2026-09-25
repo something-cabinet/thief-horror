@@ -1,5 +1,18 @@
 extends Node3D
 
+# Automated regression test (not used by the game). Run _step_solver_test.tscn directly,
+# or headless: godot --headless res://level/_step_solver_test.tscn
+# Checks:
+#   - Level1 player spawn position/yaw/pitch.
+#   - Collision setup on specific map meshes (trimesh vs. box, non-interactive props).
+#   - Interactables: expected counts, open/close animation, outlines, lamps, TVs,
+#     drawer start states, van doors only usable from outside, front door.
+#   - Player movement: walks a physics-driven player through stairs, doorways and a
+#     synthetic step/obstacle course, checking step-up works, tall obstacles block,
+#     and the camera doesn't jerk upward.
+# Prints [..._TEST] lines; quits with exit code 0 if everything passes, 1 on any failure.
+# NOTE: expected counts and coordinates are hard-coded, so update them when the map changes.
+
 const MAP_SCENE := preload("res://level/AbandonedHouseMap.tscn")
 const PLAYER_SCENE := preload("res://entity/player/Player.tscn")
 const LEVEL_SCENE := preload("res://level/Level1.tscn")
@@ -41,98 +54,98 @@ func _ready() -> void:
 		Vector3(-30.344, -2.775, -126.806),
 		Vector3(-1.0, 0.0, 0.0),
 		130,
-		func(position: Vector3) -> bool: return position.x < -35.0 and position.y > 0.75
+		func(pos: Vector3) -> bool: return pos.x < -35.0 and pos.y > 0.75
 	)
 	await _test_path(
 		"basement stairs left edge",
 		Vector3(-30.344, -2.775, -126.25),
 		Vector3(-1.0, 0.0, 0.0),
 		130,
-		func(position: Vector3) -> bool: return position.x < -35.0 and position.y > 0.75
+		func(pos: Vector3) -> bool: return pos.x < -35.0 and pos.y > 0.75
 	)
 	await _test_path(
 		"basement stairs right edge",
 		Vector3(-30.344, -2.775, -126.92),
 		Vector3(-1.0, 0.0, 0.0),
 		130,
-		func(position: Vector3) -> bool: return position.x < -35.0 and position.y > 0.75
+		func(pos: Vector3) -> bool: return pos.x < -35.0 and pos.y > 0.75
 	)
 	await _test_path(
 		"upper stairs center",
 		Vector3(-29.554, 0.811, -126.568),
 		Vector3(-1.0, 0.0, 0.0),
 		120,
-		func(position: Vector3) -> bool: return position.x < -35.0 and position.y > 4.2
+		func(pos: Vector3) -> bool: return pos.x < -35.0 and pos.y > 4.2
 	)
 	await _test_path(
 		"upper stairs right edge",
 		Vector3(-29.554, 0.811, -127.093),
 		Vector3(-1.0, 0.0, 0.0),
 		120,
-		func(position: Vector3) -> bool: return position.x < -35.0 and position.y > 4.2
+		func(pos: Vector3) -> bool: return pos.x < -35.0 and pos.y > 4.2
 	)
 	await _test_path(
 		"upper stairs descend",
 		Vector3(-34.2, 4.378, -126.568),
 		Vector3(1.0, 0.0, 0.0),
 		120,
-		func(position: Vector3) -> bool: return position.x > -30.0 and position.y < 1.3
+		func(pos: Vector3) -> bool: return pos.x > -30.0 and pos.y < 1.3
 	)
 	await _test_path(
 		"basement stairs descend",
 		Vector3(-34.2, 0.81, -126.568),
 		Vector3(1.0, 0.0, 0.0),
 		120,
-		func(position: Vector3) -> bool: return position.x > -30.0 and position.y < -2.3
+		func(pos: Vector3) -> bool: return pos.x > -30.0 and pos.y < -2.3
 	)
 	await _test_path(
 		"front doorstep",
 		Vector3(-29.0, 0.811, -114.5),
 		Vector3(0.0, 0.0, -1.0),
 		90,
-		func(position: Vector3) -> bool: return position.z < -116.0
+		func(pos: Vector3) -> bool: return pos.z < -116.0
 	)
 	await _test_path(
 		"front doorway right enter",
 		Vector3(-28.28, 0.811, -114.5),
 		Vector3(0.0, 0.0, -1.0),
 		90,
-		func(position: Vector3) -> bool: return position.z < -117.0
+		func(pos: Vector3) -> bool: return pos.z < -117.0
 	)
 	await _test_path(
 		"front doorway right exit",
 		Vector3(-28.28, 0.811, -118.069),
 		Vector3(0.0, 0.0, 1.0),
 		90,
-		func(position: Vector3) -> bool: return position.z > -115.0
+		func(pos: Vector3) -> bool: return pos.z > -115.0
 	)
 	await _test_path(
 		"interior doorway glancing entry",
 		Vector3(-48.237, 0.811, -123.996),
 		Vector3(-0.761, 0.0, -0.648).normalized(),
 		45,
-		func(position: Vector3) -> bool: return position.distance_to(Vector3(-48.237, 0.811, -123.996)) > 0.75
+		func(pos: Vector3) -> bool: return pos.distance_to(Vector3(-48.237, 0.811, -123.996)) > 0.75
 	)
 	await _test_path(
 		"synthetic 0.25m step",
 		Vector3(99.0, 1.001, 100.0),
 		Vector3(1.0, 0.0, 0.0),
 		40,
-		func(position: Vector3) -> bool: return position.x > 101.5 and position.y > 1.18
+		func(pos: Vector3) -> bool: return pos.x > 101.5 and pos.y > 1.18
 	)
 	await _test_path(
 		"synthetic narrow doorway",
 		Vector3(99.0, 1.001, 108.0),
 		Vector3(1.0, 0.0, 0.0),
 		75,
-		func(position: Vector3) -> bool: return position.x > 102.0
+		func(pos: Vector3) -> bool: return pos.x > 102.0
 	)
 	await _test_path(
 		"synthetic 0.50m obstacle stays blocked",
 		Vector3(99.0, 1.001, 104.0),
 		Vector3(1.0, 0.0, 0.0),
 		60,
-		func(position: Vector3) -> bool: return position.x < 99.8 and position.y < 1.1
+		func(pos: Vector3) -> bool: return pos.x < 99.8 and pos.y < 1.1
 	)
 
 	if failures.is_empty():
@@ -381,7 +394,7 @@ func _verify_airborne_wedge_recovery() -> void:
 	player.global_position += Vector3.UP * 0.6
 	player.velocity = Vector3.ZERO
 	player.vel_vertical = 0.0
-	for frame in player.AIRBORNE_WEDGE_RECOVERY_FRAMES:
+	for _frame in player.AIRBORNE_WEDGE_RECOVERY_FRAMES:
 		player._recover_from_airborne_wedge(player.global_position)
 	if not player.global_position.is_equal_approx(recovery_origin):
 		failures.append("airborne wedge recovery did not return to the safe jump origin")
@@ -449,7 +462,7 @@ func _verify_trimesh_collision_prefix(map: Node, prefix: String) -> void:
 
 
 func _test_path(
-	name: String,
+	test_name: String,
 	start: Vector3,
 	direction: Vector3,
 	frames: int,
@@ -469,7 +482,7 @@ func _test_path(
 	var current_stall := 0
 	var vertical_speed := -0.1
 	var max_camera_rise := 0.0
-	for frame in frames:
+	for _frame in frames:
 		var before_move := player.global_position
 		var before_camera_y := player.player_camera.global_position.y
 		if player.is_on_floor():
@@ -502,7 +515,7 @@ func _test_path(
 	if max_camera_rise > 0.1:
 		result = false
 	print("[STEP_TEST] %s result=%s xyz=%s steps=%d max_stall=%d camera_rise=%.3f last=%s" % [
-		name,
+		test_name,
 		result,
 		player.global_position,
 		step_count,
@@ -511,7 +524,9 @@ func _test_path(
 		player.step_debug_reason,
 	])
 	if not result:
-		failures.append("%s failed at %s (%s)" % [name, player.global_position, player.step_debug_reason])
+		failures.append("%s failed at %s (%s)" % [test_name, player.global_position, player.step_debug_reason])
+
+
 func _add_synthetic_course() -> void:
 	_add_box("SyntheticFloor", Vector3(102.0, -0.1, 104.0), Vector3(10.0, 0.2, 14.0))
 	_add_box("ShortStep", Vector3(101.0, 0.125, 100.0), Vector3(2.0, 0.25, 2.5))
@@ -520,14 +535,14 @@ func _add_synthetic_course() -> void:
 	_add_box("DoorwayRight", Vector3(101.5, 1.5, 108.41), Vector3(3.0, 3.0, 0.2))
 
 
-func _add_box(name: String, position: Vector3, size: Vector3) -> void:
+func _add_box(body_name: String, body_position: Vector3, size: Vector3) -> void:
 	var body := StaticBody3D.new()
-	body.name = name
+	body.name = body_name
 	body.collision_layer = 1
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size
 	collision.shape = shape
-	body.position = position
+	body.position = body_position
 	body.add_child(collision)
 	add_child(body)

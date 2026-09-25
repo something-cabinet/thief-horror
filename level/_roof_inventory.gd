@@ -1,5 +1,12 @@
 extends Node
 
+# Debug-only diagnostic tool (not used by the game). Run _roof_inventory.tscn directly:
+# it loads Level1, waits two frames, then prints to the output log:
+#   [COBWEB_MATERIAL] - material/transparency info for every "Telaraña" (cobweb) mesh.
+#   [ROOF_INVENTORY]  - every mesh whose world XZ bounds (±2 m) contain SAMPLE,
+#                       i.e. what is stacked above/below that point (e.g. roof pieces).
+# Then quits. Change SAMPLE to inspect a different spot.
+
 const LEVEL := preload("res://level/Level1.tscn")
 const SAMPLE := Vector3(-42.889, 4.379, -125.627)
 
