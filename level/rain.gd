@@ -82,8 +82,7 @@ func _create_world_rain() -> void:
 	world_rain.lifetime = 1.25
 	world_rain.preprocess = 1.25
 	world_rain.randomness = 0.3
-	# Follow the game frame rate: 30 by default, or 60 when selected.
-	world_rain.fixed_fps = 0
+	world_rain.fixed_fps = 120
 	world_rain.fract_delta = true
 	world_rain.local_coords = false
 	world_rain.visibility_aabb = AABB(

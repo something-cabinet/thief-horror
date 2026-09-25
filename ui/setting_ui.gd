@@ -36,10 +36,12 @@ var keybindable_action_list = {
 	"jump": "Jump",
 	"dash": "Dash",
 	"crouch": "Crouch/Slam",
-	"primary_attack": "Primary attack",
-	"secondary_attack": "Secondary attack",
-	"weapon_slot_1": "Weapon slot 1",
-	"weapon_slot_2": "Weapon slot 2",
+	"collect": "Collect item",
+	"item_slot_1": "Item slot 1",
+	"item_slot_2": "Item slot 2",
+	"item_slot_3": "Item slot 3",
+	"item_slot_4": "Item slot 4",
+	"item_slot_5": "Item slot 5",
 	"pause_menu": "Pause Menu",
 }
 var is_remapping = false

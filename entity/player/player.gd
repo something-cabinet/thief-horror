@@ -17,12 +17,18 @@ class_name Player
 @onready var audio_player: CharacterAudioPlayer3D = $CharacterAudioPlayer3D
 
 @onready var gun_container = $Neck/ShakeableCamera/GunContainer
+@onready var held_item_pivot: Node3D = $Neck/ShakeableCamera/HeldItemPivot
 @onready var aim_ray: AimRay = $Neck/ShakeableCamera/AimRay
 @onready var aim_reticle: TextureRect = $Neck/ShakeableCamera/AimRecticle
 @onready var hitmarker: TextureRect = $Neck/ShakeableCamera/HitMarker
 @onready var pause_ui: PauseUI = $CanvasLayer/PauseUI
+@onready var hotbar: HotbarUI = $CanvasLayer/Hotbar
 
 var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
+var starter_pistol_icon = preload("res://asset/ui/starter_pistol_icon.png")
+var starter_pistol_scene = preload("res://entity/weapon/gun/StarterPistol.tscn")
+var pickup_item_scene = preload("res://entity/item/PickupItem.tscn")
+var interaction_outline_shader = preload("res://material/interaction_outline.gdshader")
 
 const MAX_SPEED = 4.0
 const JUMP_FORCE = 5.0
@@ -48,6 +54,14 @@ const STEP_LANDING_MIN_UP_DOT = 0.5
 const STUCK_LOG_INTERVAL_MSEC = 500
 const STUCK_MIN_REQUEST_DISTANCE = 0.005
 const STUCK_PROGRESS_RATIO = 0.15
+const AIRBORNE_WEDGE_RECOVERY_FRAMES = 6
+const AIRBORNE_WEDGE_MOTION_EPSILON = 0.001
+const AIRBORNE_WEDGE_MIN_HEIGHT = 0.05
+const INVENTORY_SIZE := 5
+const INTERACTION_DISTANCE := 3.2
+const THROW_SPEED := 7.0
+const THROW_SPAWN_DISTANCE := 0.8
+const OUTLINE_VISIBILITY_MASK := 1 << 19
 
 const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
@@ -80,6 +94,17 @@ var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
 var last_stuck_log_msec := 0
+var inventory: Array[Dictionary] = []
+var selected_item_slot := 0
+var focused_interactable: Node3D
+var dev_probe_message := ""
+var dev_probe_message_until_msec := 0
+var outline_viewport: SubViewport
+var outline_camera: Camera3D
+var outline_rect: TextureRect
+var jump_recovery_position := Vector3.ZERO
+var jump_recovery_valid := false
+var airborne_wedge_frames := 0
 
 func _ready():
 	GameManager.player = self
@@ -90,9 +115,25 @@ func _ready():
 	gun_container_original_pos = gun_container.position
 	last_dashed_timestamp = 0
 	current_gun_slot = 0
+	gun_container.visible = true
 	for child in gun_container.get_children():
 		child.visible = false
 	gun_container.get_child(current_gun_slot).visible = true
+	for index in INVENTORY_SIZE:
+		inventory.append({})
+	inventory[0] = {
+		"id": &"starter_pistol",
+		"name": "Pistol",
+		"kind": "gun",
+		"gun_slot": 0,
+		"icon": starter_pistol_icon,
+		"scene": starter_pistol_scene,
+		"display_size": 0.55,
+		"mass": 1.0,
+	}
+	hotbar.update_slots(inventory, selected_item_slot)
+	_refresh_held_item()
+	_setup_interaction_outline_overlay()
 	call_deferred("prewarm_shot_assets")
 
 func _input(event):
@@ -101,23 +142,48 @@ func _input(event):
 			debug_label.visible = not debug_label.visible
 			get_viewport().set_input_as_handled()
 			return
+		if event.keycode == KEY_F4 or event.physical_keycode == KEY_F4:
+			_probe_surface_coordinate()
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
+	if event.is_action_pressed("collect"):
+		_try_interact_focused()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("throw_item"):
+		_throw_selected_item()
+		get_viewport().set_input_as_handled()
+		return
+	for slot_index in INVENTORY_SIZE:
+		if event.is_action_pressed("item_slot_%d" % (slot_index + 1)):
+			_select_item_slot(slot_index)
+			get_viewport().set_input_as_handled()
+			return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_select_item_slot(posmod(selected_item_slot - 1, INVENTORY_SIZE))
+			get_viewport().set_input_as_handled()
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_select_item_slot((selected_item_slot + 1) % INVENTORY_SIZE)
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed("dash"):
 		if last_dashed_timestamp + dash_cd * 1000 <= Time.get_ticks_msec():
 			last_dashed_timestamp = Time.get_ticks_msec()
 			is_dashing = true
 			vel_vertical = 0
 			dash_duration_timer.start()
-	if event.is_action_pressed("weapon_slot_1") and current_gun_slot != 0:
-		current_gun_slot = 0
-		swap_gun()
-	if event.is_action_pressed("weapon_slot_2") and current_gun_slot != 1:
-		current_gun_slot = 1
-		swap_gun()
 
 func _process(delta):
+	_sync_interaction_outline_camera()
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
+	_update_interaction_target()
+	if not _selected_item_is_gun():
+		attack_input_armed = false
+		return
 	if not attack_input_armed:
 		attack_input_armed = (
 			not Input.is_action_pressed("primary_attack")
@@ -127,6 +193,278 @@ func _process(delta):
 	if not is_swapping_gun:
 		check_primary_attack()
 		check_secondary_attack()
+
+
+func add_inventory_item(
+	item_id: StringName,
+	display_name: String,
+	model_scene: PackedScene,
+	icon: Texture2D,
+	display_size := 0.55,
+	item_mass := 0.5,
+	item_kind: StringName = &"item",
+	gun_slot := -1
+) -> bool:
+	for slot_index in INVENTORY_SIZE:
+		if inventory[slot_index].is_empty():
+			inventory[slot_index] = {
+				"id": item_id,
+				"name": display_name,
+				"scene": model_scene,
+				"icon": icon,
+				"display_size": display_size,
+				"mass": item_mass,
+				"kind": item_kind,
+				"gun_slot": gun_slot,
+			}
+			_select_item_slot(slot_index)
+			return true
+	hotbar.set_prompt("Inventory full")
+	return false
+
+
+func _throw_selected_item() -> void:
+	var item := inventory[selected_item_slot]
+	if item.is_empty():
+		return
+	var dropped := pickup_item_scene.instantiate() as PickupItem
+	dropped.item_id = item.get("id", &"") as StringName
+	dropped.display_name = String(item.get("name", "Item"))
+	dropped.item_kind = StringName(item.get("kind", &"item"))
+	dropped.gun_slot = int(item.get("gun_slot", -1))
+	dropped.model_scene = item.get("scene") as PackedScene
+	dropped.icon = item.get("icon") as Texture2D
+	dropped.display_size = float(item.get("display_size", 0.55))
+	dropped.item_mass = float(item.get("mass", 0.5))
+	get_parent().add_child(dropped)
+	var throw_direction := (-player_camera.camera.global_basis.z + Vector3.UP * 0.12).normalized()
+	var held_rotation := _held_item_rotation(item) * (PI / 180.0)
+	dropped.global_basis = player_camera.camera.global_basis * Basis.from_euler(held_rotation)
+	dropped.global_position = (
+		player_camera.camera.global_position
+		+ throw_direction * THROW_SPAWN_DISTANCE
+	)
+	dropped.linear_velocity = velocity + throw_direction * THROW_SPEED
+	dropped.angular_velocity = player_camera.camera.global_basis * Vector3(5.0, 3.0, -4.0)
+	inventory[selected_item_slot] = {}
+	hotbar.update_slots(inventory, selected_item_slot)
+	_refresh_held_item()
+
+
+func _update_interaction_target() -> void:
+	if not hotbar.visible or not is_inside_tree():
+		_set_focused_interactable(null)
+		return
+	var ray_start := player_camera.camera.global_position
+	var ray_end := ray_start - player_camera.camera.global_basis.z * INTERACTION_DISTANCE
+	var query := PhysicsRayQueryParameters3D.create(ray_start, ray_end, 9, [get_rid()])
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	var candidate: Node3D
+	if not result.is_empty():
+		var collider := result.collider as Node3D
+		if collider != null and collider.is_in_group("interactable"):
+			if (
+				not collider.has_method("can_interact_from")
+				or bool(collider.call("can_interact_from", ray_start))
+			):
+				candidate = collider
+	_set_focused_interactable(candidate)
+	if Time.get_ticks_msec() < dev_probe_message_until_msec:
+		hotbar.set_prompt(dev_probe_message)
+	elif not dev_probe_message.is_empty():
+		dev_probe_message = ""
+		_refresh_interaction_prompt()
+
+
+func _set_focused_interactable(candidate: Node3D) -> void:
+	if focused_interactable == candidate:
+		return
+	if is_instance_valid(focused_interactable):
+		focused_interactable.call("set_highlighted", false)
+	focused_interactable = candidate
+	if is_instance_valid(focused_interactable):
+		focused_interactable.call("set_highlighted", true)
+	_set_interaction_outline_enabled(is_instance_valid(focused_interactable))
+	_refresh_interaction_prompt()
+
+
+func _refresh_interaction_prompt() -> void:
+	if Time.get_ticks_msec() < dev_probe_message_until_msec:
+		hotbar.set_prompt(dev_probe_message)
+	elif is_instance_valid(focused_interactable):
+		hotbar.set_prompt(String(focused_interactable.call("get_interaction_prompt")))
+	else:
+		hotbar.set_prompt("")
+
+
+func _setup_interaction_outline_overlay() -> void:
+	outline_viewport = SubViewport.new()
+	outline_viewport.name = "InteractionOutlineViewport"
+	outline_viewport.transparent_bg = true
+	outline_viewport.handle_input_locally = false
+	outline_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	outline_viewport.world_3d = get_world_3d()
+	add_child(outline_viewport)
+
+	outline_camera = Camera3D.new()
+	outline_camera.cull_mask = OUTLINE_VISIBILITY_MASK
+	outline_camera.current = true
+	var clear_environment := Environment.new()
+	clear_environment.background_mode = Environment.BG_COLOR
+	clear_environment.background_color = Color(0.0, 0.0, 0.0, 0.0)
+	outline_camera.environment = clear_environment
+	outline_viewport.add_child(outline_camera)
+
+	outline_rect = TextureRect.new()
+	outline_rect.name = "InteractionOutline"
+	outline_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	outline_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	outline_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	outline_rect.texture = outline_viewport.get_texture()
+	var outline_shader_material := ShaderMaterial.new()
+	outline_shader_material.shader = interaction_outline_shader
+	outline_rect.material = outline_shader_material
+	outline_rect.visible = false
+	outline_rect.z_index = -100
+	$CanvasLayer.add_child(outline_rect)
+	_sync_interaction_outline_camera()
+
+
+func _sync_interaction_outline_camera() -> void:
+	if not is_instance_valid(outline_viewport) or not is_instance_valid(outline_camera):
+		return
+	var viewport_size := Vector2i(get_viewport().get_visible_rect().size)
+	if viewport_size.x > 0 and viewport_size.y > 0 and outline_viewport.size != viewport_size:
+		outline_viewport.size = viewport_size
+	outline_camera.global_transform = player_camera.camera.global_transform
+	outline_camera.fov = player_camera.camera.fov
+	outline_camera.near = player_camera.camera.near
+	outline_camera.far = player_camera.camera.far
+
+
+func _set_interaction_outline_enabled(enabled: bool) -> void:
+	if not is_instance_valid(outline_viewport) or not is_instance_valid(outline_rect):
+		return
+	outline_rect.visible = enabled
+	outline_viewport.render_target_update_mode = (
+		SubViewport.UPDATE_ALWAYS if enabled else SubViewport.UPDATE_DISABLED
+	)
+
+
+func _try_interact_focused() -> void:
+	if not is_instance_valid(focused_interactable):
+		return
+	var target := focused_interactable
+	target.call("interact", self)
+	if not is_instance_valid(target) or target.is_queued_for_deletion():
+		_set_focused_interactable(null)
+	else:
+		_refresh_interaction_prompt()
+
+
+func _probe_surface_coordinate() -> void:
+	var ray_start := player_camera.camera.global_position
+	var ray_end := ray_start - player_camera.camera.global_basis.z * 100.0
+	var query := PhysicsRayQueryParameters3D.create(ray_start, ray_end, 1, [get_rid()])
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	dev_probe_message_until_msec = Time.get_ticks_msec() + 4000
+	if result.is_empty():
+		dev_probe_message = "F4: no surface hit"
+		print("[DEV_SURFACE] no surface hit")
+		return
+	var hit_position: Vector3 = result.position
+	var hit_normal: Vector3 = result.normal
+	var coordinate := "Vector3(%.3f, %.3f, %.3f)" % [
+		hit_position.x, hit_position.y, hit_position.z
+	]
+	DisplayServer.clipboard_set(coordinate)
+	dev_probe_message = "Copied %s" % coordinate
+	print(
+		"[DEV_SURFACE] position=%s normal=Vector3(%.3f, %.3f, %.3f) collider=%s"
+		% [coordinate, hit_normal.x, hit_normal.y, hit_normal.z, result.collider]
+	)
+
+
+func _select_item_slot(slot_index: int) -> void:
+	selected_item_slot = clampi(slot_index, 0, INVENTORY_SIZE - 1)
+	attack_input_armed = false
+	hotbar.update_slots(inventory, selected_item_slot)
+	_refresh_held_item()
+
+
+func _refresh_held_item() -> void:
+	for child in held_item_pivot.get_children():
+		child.free()
+	gun_container.visible = false
+	for child in gun_container.get_children():
+		child.visible = false
+	var item := inventory[selected_item_slot]
+	if item.is_empty():
+		return
+	if item.get("kind", "") == "gun":
+		current_gun_slot = int(item.get("gun_slot", 0))
+		gun_container.visible = true
+		var gun := gun_container.get_child(current_gun_slot) as Gun
+		gun.visible = true
+		gun.reset_for_gameplay()
+		return
+	var model_scene := item.get("scene") as PackedScene
+	if model_scene == null:
+		return
+	var holder := Node3D.new()
+	holder.rotation_degrees = _held_item_rotation(item)
+	held_item_pivot.add_child(holder)
+	var model := model_scene.instantiate() as Node3D
+	holder.add_child(model)
+	var bounds := _calculate_model_bounds(model)
+	var longest_side := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+	if longest_side <= 0.0001:
+		return
+	var scale_factor := 0.34 / longest_side
+	model.scale = Vector3.ONE * scale_factor
+	model.position = -bounds.get_center() * scale_factor
+
+
+func _selected_item_is_gun() -> bool:
+	if inventory.is_empty():
+		return false
+	return inventory[selected_item_slot].get("kind", "") == "gun"
+
+
+func _held_item_rotation(item: Dictionary) -> Vector3:
+	var item_id := StringName(item.get("id", &""))
+	if item_id == &"notebook":
+		return Vector3(78, 12, -4)
+	if item_id == &"cigarettes" or item_id == &"antique_radio":
+		return Vector3(-12, 204, -4)
+	return Vector3(-12, 24, -4)
+
+
+func _calculate_model_bounds(root: Node3D) -> AABB:
+	var result := AABB()
+	var has_point := false
+	var mesh_instances: Array[MeshInstance3D] = []
+	if root is MeshInstance3D:
+		mesh_instances.append(root as MeshInstance3D)
+	for child: Node in root.find_children("*", "MeshInstance3D", true, false):
+		mesh_instances.append(child as MeshInstance3D)
+	var inverse_root := root.global_transform.affine_inverse()
+	for mesh_instance in mesh_instances:
+		if mesh_instance.mesh == null:
+			continue
+		var local_transform := inverse_root * mesh_instance.global_transform
+		var mesh_bounds := mesh_instance.mesh.get_aabb()
+		var bounds_end := mesh_bounds.position + mesh_bounds.size
+		for x in [mesh_bounds.position.x, bounds_end.x]:
+			for y in [mesh_bounds.position.y, bounds_end.y]:
+				for z in [mesh_bounds.position.z, bounds_end.z]:
+					var point := local_transform * Vector3(x, y, z)
+					if not has_point:
+						result = AABB(point, Vector3.ZERO)
+						has_point = true
+					else:
+						result = result.expand(point)
+	return result
 
 func _physics_process(delta):
 	if is_dashing:
@@ -186,6 +524,12 @@ func _physics_process(delta):
 	var step_handled := _try_step_up(requested_horizontal_motion)
 	if not step_handled:
 		move_and_slide()
+		# CharacterBody3D clips velocity against floors, ceilings, and walls.
+		# Keep the custom vertical state in sync so a ceiling hit cannot leave the
+		# player applying the old fall speed forever while physically stationary.
+		if not is_on_floor():
+			vel_vertical = velocity.y
+	_recover_from_airborne_wedge(movement_start)
 
 	if debug_label.visible:
 		_log_stuck_movement(movement_start, requested_horizontal_motion)
@@ -345,6 +689,37 @@ func _log_stuck_movement(movement_start: Vector3, requested_motion: Vector3) -> 
 		]
 	print(log_line)
 
+
+func _recover_from_airborne_wedge(movement_start: Vector3) -> void:
+	if is_on_floor():
+		airborne_wedge_frames = 0
+		jump_recovery_valid = false
+		return
+	if (
+		not jump_recovery_valid
+		or vel_vertical > 0.0
+		or global_position.y <= jump_recovery_position.y + AIRBORNE_WEDGE_MIN_HEIGHT
+	):
+		airborne_wedge_frames = 0
+		return
+	if global_position.distance_to(movement_start) > AIRBORNE_WEDGE_MOTION_EPSILON:
+		airborne_wedge_frames = 0
+		return
+
+	airborne_wedge_frames += 1
+	if airborne_wedge_frames < AIRBORNE_WEDGE_RECOVERY_FRAMES:
+		return
+
+	global_position = jump_recovery_position
+	velocity = Vector3.ZERO
+	vel_horizontal = Vector2.ZERO
+	vel_vertical = 0.0
+	jumped = false
+	jump_recovery_valid = false
+	airborne_wedge_frames = 0
+	step_debug_reason = "recovered from airborne wedge"
+	apply_floor_snap()
+
 func play_sfx(sfx: AudioStream):
 	audio_player.play(sfx, "SFX", true)
 
@@ -364,9 +739,13 @@ func show_debug_label():
 	debug_label.text += "\nIs dashing: {0} | Is crouching: {1} | Is sprinting: {2}".format([is_dashing, is_crouching, is_sprinting])
 	debug_label.text += "\nAir jumps left: {0}".format([max_air_jump - current_air_jump_count])
 	debug_label.text += "\nCoyote jump: {0}".format([can_coyote_jump])
-	debug_label.text += "\nUsing gun: {0}".format([gun_container.get_child(current_gun_slot).data.name])
+	var selected_name := String(inventory[selected_item_slot].get("name", "Empty"))
+	debug_label.text += "\nSelected item: {0}".format([selected_name])
 
 func jump(multiplier = 1.0):
+	jump_recovery_position = global_position
+	jump_recovery_valid = true
+	airborne_wedge_frames = 0
 	vel_vertical = JUMP_FORCE * multiplier
 	jumped = true
 	state_chart.send_event("jump")
@@ -615,23 +994,19 @@ func prewarm_shot_assets() -> void:
 			prewarm_hitscan(child.primary_projectile)
 			prewarm_hitscan(child.secondary_projetile)
 	prewarm_enemy_effects(get_parent())
-	if GameManager.is_preparing_first_level:
-		await render_prewarmed_shot_assets()
 	shot_assets_ready = true
 
 func set_preview_mode(enabled: bool) -> void:
-	gun_container.visible = not enabled
+	gun_container.visible = false
 	aim_reticle.visible = not enabled
 	hitmarker.visible = not enabled
+	hotbar.visible = not enabled
 	debug_label.visible = false
 	pause_ui.visible = false
 	pause_ui.is_paused = false
 	pause_ui.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_ALWAYS
 	if not enabled:
-		attack_input_armed = false
-		for child in gun_container.get_children():
-			if child is Gun:
-				child.reset_for_gameplay()
+		_refresh_held_item()
 
 func snap_to_floor(max_distance: float = 100.0) -> void:
 	var query := PhysicsRayQueryParameters3D.create(

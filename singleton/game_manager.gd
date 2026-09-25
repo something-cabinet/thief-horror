@@ -19,7 +19,7 @@ var camera_fov: float = 90: # From 60 to 120
             player.player_camera.set_fov(value)
         camera_fov = value
 var camera_tilt = true
-var fps_limit_index = 0 # Default 30 FPS. Refer to EnumAutoload.FPS_LIMIT_ARRAY.
+var fps_limit_index = 2 # From 0 to 5. Refer to EnumAutoload.FPS_LIMIT_ARRAY
 var resolution_index = 4 # From 0 to 6. Refer to EnumAutoload.RESOLUTION_ARRAY. Not used in FULL_SCREEN
 var vsync_option_index = 1
 var window_mode_index = 1 # From 0 to 2
@@ -34,17 +34,24 @@ const DEFAULT_WINDOW_ASPECT := 16.0 / 9.0
 
 
 func _ready() -> void:
-    _apply_screen_aware_window_size()
-
-
-func _apply_screen_aware_window_size() -> void:
-    if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+    var recommended_size := _configure_screen_aware_window_size()
+    if recommended_size == Vector2i.ZERO:
         return
+
+    if DisplayServer.get_name() == "headless":
+        _apply_window_size(recommended_size)
+    else:
+        _apply_window_size_after_first_frame(recommended_size)
+
+
+func _configure_screen_aware_window_size() -> Vector2i:
+    if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+        return Vector2i.ZERO
 
     var screen := DisplayServer.window_get_current_screen()
     var usable_rect := DisplayServer.screen_get_usable_rect(screen)
     if usable_rect.size.x <= 0 or usable_rect.size.y <= 0:
-        return
+        return Vector2i.ZERO
 
     var maximum_size := Vector2i(
         floori(usable_rect.size.x * DEFAULT_WINDOW_SCREEN_FRACTION),
@@ -56,7 +63,23 @@ func _apply_screen_aware_window_size() -> void:
     var recommended_size := Vector2i(window_width, window_height)
 
     resolution_index = EnumAutoload.configure_resolutions(maximum_size, recommended_size)
+    return recommended_size
+
+
+func _apply_window_size_after_first_frame(recommended_size: Vector2i) -> void:
+    # Resizing while Godot's boot splash is still on screen leaves its old
+    # Retina framebuffer visible in one quadrant of the resized window.
+    await RenderingServer.frame_post_draw
+    _apply_window_size(recommended_size)
+
+
+func _apply_window_size(recommended_size: Vector2i) -> void:
+    if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+        return
+
     DisplayServer.window_set_size(recommended_size)
+    var screen := DisplayServer.window_get_current_screen()
+    var usable_rect := DisplayServer.screen_get_usable_rect(screen)
     var decorated_size := DisplayServer.window_get_size_with_decorations()
     DisplayServer.window_set_position(usable_rect.position + (usable_rect.size - decorated_size) / 2)
 
