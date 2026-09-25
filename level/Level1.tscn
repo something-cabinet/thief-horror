@@ -1,7 +1,9 @@
 [gd_scene format=3 uid="uid://c1bh7fpi21j3r"]
 
 [ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="1_player"]
+[ext_resource type="Script" uid="uid://jjoihpaltc7k" path="res://level/level_house.gd" id="1_wkgn0"]
 [ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="2_ambience"]
+[ext_resource type="Resource" uid="uid://6jdgk5c4o02h" path="res://dialogue/intro.dialogue" id="2_p8t1u"]
 [ext_resource type="PackedScene" uid="uid://dfn5obt3y3j25" path="res://level/AbandonedHouseMap.tscn" id="3_map"]
 [ext_resource type="PackedScene" path="res://level/Rain.tscn" id="4_rain"]
 [ext_resource type="PackedScene" uid="uid://bwkmoxw0j77nn" path="res://entity/item/PickupItem.tscn" id="5_pickup"]
@@ -40,6 +42,8 @@ fog_height = 1.0
 fog_height_density = 0.08
 
 [node name="Level1" type="Node3D" unique_id=304480321]
+script = ExtResource("1_wkgn0")
+intro_dialogue = ExtResource("2_p8t1u")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=164775796]
 environment = SubResource("Environment_house")

@@ -1,6 +1,7 @@
 extends Node2D
 
 signal first_level_prepared
+signal first_level_started
 
 @export var level_list: Array[PackedScene]
 @export var title_screen: PackedScene
@@ -10,6 +11,8 @@ var player: Player
 var is_preparing_first_level := false
 
 var cached_first_level: Node
+var current_level: Node
+var current_level_index := 0
 
 # Setting
 var mouse_sensitivity: float = 50.0
@@ -130,6 +133,7 @@ func load_first_level() -> void:
         preview_player.set_preview_mode(false)
         preview_player.process_mode = Node.PROCESS_MODE_INHERIT
     get_tree().current_scene = cached_first_level
+    current_level_index = 0
     if preview_player != null:
         preview_player.snap_to_floor()
         preview_player.velocity = Vector3.ZERO
@@ -141,6 +145,7 @@ func load_first_level() -> void:
     cached_first_level = null
     if previous_scene != null:
         previous_scene.queue_free()
+    first_level_started.emit()
 
 func log_rain_state(scene: Node, stage: String) -> void:
     var rain := scene.find_child("Rain", true, false)
@@ -164,11 +169,28 @@ func set_scene_audio_active(node: Node, active: bool) -> void:
         set_scene_audio_active(child, active)
 
 func go_back_to_title_screen():
-    get_tree().paused = false
-    Engine.time_scale = 1
     reset_data()
+    # The title menu needs a visible cursor even if we didn't come from the pause menu.
+    Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
     get_tree().change_scene_to_packed(title_screen)
 
 
+func change_level(index: int) -> void:
+    if index < 0 or index >= level_list.size():
+        push_error("change_level: index %d out of range (%d levels)" % [index, level_list.size()])
+        return
+
+    reset_data()
+    current_level_index = index
+    # Deferred: the new level's _ready sets current_level, and Player._ready recaptures the mouse.
+    get_tree().change_scene_to_packed(level_list[index])
+
+
 func reset_data():
-    pass
+    get_tree().paused = false
+    Engine.time_scale = 1
+    # These point into the level that change_scene is about to free. The next
+    # level's Player/PauseUI re-register themselves in _ready.
+    player = null
+    pause_ui = null
+    current_level = null

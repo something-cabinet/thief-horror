@@ -24,7 +24,8 @@ func _on_start_button_pressed() -> void:
 	play_button_click_sfx()
 	start_button.disabled = true
 	start_button.text = "Loading..."
-	await GameManager.load_first_level()
+	GameManager.load_first_level()
+
 
 func _on_setting_button_pressed() -> void:
 	play_button_click_sfx()
