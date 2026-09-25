@@ -90,6 +90,8 @@ var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
 var shot_assets_ready := false
 var attack_input_armed := false
+# True while a dialogue balloon is open; blocks movement, look, attacks and item use.
+var input_locked := false
 var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
@@ -134,7 +136,17 @@ func _ready():
 	hotbar.update_slots(inventory, selected_item_slot)
 	_refresh_held_item()
 	_setup_interaction_outline_overlay()
+	DialogueManager.dialogue_started.connect(_on_dialogue_started)
+	DialogueManager.dialogue_ended.connect(_on_dialogue_ended)
 	call_deferred("prewarm_shot_assets")
+
+func _on_dialogue_started(_resource: DialogueResource) -> void:
+	input_locked = true
+	is_dashing = false
+	is_crouching = false
+
+func _on_dialogue_ended(_resource: DialogueResource) -> void:
+	input_locked = false
 
 func _input(event):
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -146,6 +158,8 @@ func _input(event):
 			_probe_surface_coordinate()
 			get_viewport().set_input_as_handled()
 			return
+	if input_locked:
+		return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
 	if event.is_action_pressed("interact"):
@@ -181,7 +195,8 @@ func _process(delta):
 	_sync_interaction_outline_camera()
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
 	_update_interaction_target()
-	if not _selected_item_is_gun():
+	# Disarming also stops the click that closes the last dialogue line from firing.
+	if input_locked or not _selected_item_is_gun():
 		attack_input_armed = false
 		return
 	if not attack_input_armed:
@@ -475,6 +490,9 @@ func _physics_process(delta):
 		if raw_input_dir == Vector2.ZERO:
 			raw_input_dir = Vector2(0, -1)
 			input_dir = raw_input_dir.rotated(-rotation.y)
+	elif input_locked:
+		raw_input_dir = Vector2.ZERO
+		input_dir = Vector2.ZERO
 	else:
 		raw_input_dir = Input.get_vector("left", "right", "up", "down")
 		input_dir = raw_input_dir.rotated(-rotation.y)
@@ -498,7 +516,7 @@ func _physics_process(delta):
 	else:
 		state_chart.send_event("airborne")
 
-	is_sprinting = Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
+	is_sprinting = not input_locked and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
 	var max_speed = MAX_SPEED * SPRINT_SPEED_MODIFIER if is_sprinting else MAX_SPEED
 
 	var current_speed = vel_horizontal.length()
@@ -860,16 +878,20 @@ func _on_dash_duration_timeout() -> void:
 	is_dashing = false
 
 func _on_grounded_state_input(event: InputEvent):
+	if input_locked:
+		return
 	if event.is_action_pressed("jump"):
 		jump()
 
 func _on_grounded_state_physics_processing(_delta: float):
-	if Input.is_action_pressed("crouch"):
+	if not input_locked and Input.is_action_pressed("crouch"):
 		is_crouching = true
 	else:
 		is_crouching = false
 
 func _on_airborne_state_input(event: InputEvent):
+	if input_locked:
+		return
 	if event.is_action_pressed("jump"):
 		if can_coyote_jump and not jumped:
 			jump()
