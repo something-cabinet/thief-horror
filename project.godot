@@ -24,6 +24,11 @@ config/icon="res://icon.svg"
 EnumAutoload="*res://singleton/enum_autoload.gd"
 SoundManager="*uid://bk0j3bt5no2jk"
 GameManager="*res://singleton/GameManager.tscn"
+DialogueManager="*uid://c3rodes2l3gxb"
+
+[dialogue_manager]
+
+runtime/balloon_path="res://ui/dialogue_balloon/balloon.tscn"
 
 [display]
 
@@ -34,7 +39,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_state_charts/plugin.cfg", "res://addons/proto_shape/plugin.cfg", "res://addons/sound_manager/plugin.cfg")
+enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg", "res://addons/godot_state_charts/plugin.cfg", "res://addons/proto_shape/plugin.cfg", "res://addons/sound_manager/plugin.cfg")
 
 [input]
 
@@ -137,6 +142,10 @@ dash={
 "deadzone": 0.2,
 "events": []
 }
+
+[internationalization]
+
+locale/translations_pot_files=PackedStringArray("res://dialogue/demo.dialogue")
 
 [layer_names]
 
