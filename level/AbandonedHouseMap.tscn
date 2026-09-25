@@ -1,9 +1,29 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://dfn5obt3y3j25"]
 
-[ext_resource type="PackedScene" path="res://asset/model/abandoned_house/source/Models/Abandoned_House.fbx" id="1_map"]
-[ext_resource type="Script" path="res://level/abandoned_house_map.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://civre4kjiiuht" path="res://asset/model/abandoned_house/source/Models/Abandoned_House.fbx" id="1_map"]
+[ext_resource type="Script" uid="uid://c6jecykd84r8o" path="res://level/abandoned_house_map.gd" id="2_script"]
 
-[node name="AbandonedHouseMap" type="Node3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_ys074"]
+size = Vector3(1, 4.418091, 18.331116)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hfu1o"]
+size = Vector3(1, 4.418091, 43.73128)
+
+[node name="AbandonedHouseMap" type="Node3D" unique_id=2080501623]
 script = ExtResource("2_script")
 
-[node name="Model" parent="." instance=ExtResource("1_map")]
+[node name="Model" parent="." unique_id=1525729581 instance=ExtResource("1_map")]
+
+[node name="InvisibleWall" type="StaticBody3D" parent="." unique_id=1983579701]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InvisibleWall" unique_id=1481355662]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.30799, 0.6622114, -98.08642)
+shape = SubResource("BoxShape3D_ys074")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="InvisibleWall" unique_id=2034858473]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.15936, 0.6622114, -98.08642)
+shape = SubResource("BoxShape3D_ys074")
+
+[node name="CollisionShape3D3" type="CollisionShape3D" parent="InvisibleWall" unique_id=384352719]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -40.159706, 0.6622114, -97.34547)
+shape = SubResource("BoxShape3D_hfu1o")
