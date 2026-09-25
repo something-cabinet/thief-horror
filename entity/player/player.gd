@@ -434,7 +434,7 @@ func _selected_item_is_gun() -> bool:
 func _held_item_rotation(item: Dictionary) -> Vector3:
 	var item_id := StringName(item.get("id", &""))
 	if item_id == &"notebook":
-		return Vector3(78, 12, -4)
+		return Vector3(78, 192, -4)
 	if item_id == &"cigarettes" or item_id == &"antique_radio":
 		return Vector3(-12, 204, -4)
 	return Vector3(-12, 24, -4)
