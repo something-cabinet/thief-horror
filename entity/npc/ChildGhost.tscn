@@ -22,6 +22,8 @@ minimum_idle_time = 1.0
 maximum_idle_time = 2.5
 minimum_walk_time = 2.0
 maximum_walk_time = 4.0
+footstep_pitch_modifier = 1.16
+footstep_volume_offset_db = -3.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.65, 0)

@@ -30,6 +30,8 @@ const FOLLOW_TARGET_MAX_HEIGHT_DELTA := 0.65
 const FOLLOW_TARGET_CLEARANCE_LIFT := 0.025
 const NAVIGATION_DEBUG_HEIGHT := 0.10
 const NAVIGATION_DEBUG_POINT_SIZE := 0.12
+const FOOTSTEP_SFX := preload("res://asset/sfx/player/jump_landing.wav")
+const FOOTSTEP_SURFACE_MASK := (1 << 0) | (1 << 4)
 
 @export var display_name := "Granny"
 @export var model_scene: PackedScene
@@ -49,6 +51,8 @@ const NAVIGATION_DEBUG_POINT_SIZE := 0.12
 @export var maximum_idle_time := 4.0
 @export var minimum_walk_time := 1.5
 @export var maximum_walk_time := 3.5
+@export_range(0.5, 1.5, 0.01) var footstep_pitch_modifier := 1.0
+@export_range(-12.0, 6.0, 0.5) var footstep_volume_offset_db := 0.0
 
 @onready var model_anchor: Node3D = $ModelAnchor
 @onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
@@ -92,9 +96,13 @@ var navigation_debug_route_material: StandardMaterial3D
 var navigation_debug_active_material: StandardMaterial3D
 var navigation_debug_visible := false
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+var footstep_audio: CharacterAudioPlayer3D
 
 
 func _ready() -> void:
+	footstep_audio = CharacterAudioPlayer3D.new()
+	footstep_audio.name = "FootstepAudio"
+	add_child(footstep_audio)
 	collision_layer = 1
 	collision_mask = 5
 	add_to_group("interactable")
@@ -730,11 +738,61 @@ func _update_leg_plant(
 	if is_planted and not was_planted:
 		target.global_position = _grounded_ankle_position(foot_position)
 		target.reset_physics_interpolation()
+		_play_footstep(foot_position)
 	elif not is_planted:
 		target.global_position = foot_position
 	var plant_weight := _foot_plant_weight(leg_phase) if is_planted else 0.0
 	ik.influence = plant_weight
 	return is_planted
+
+
+func _play_footstep(foot_position: Vector3) -> void:
+	if footstep_audio == null or not is_on_floor():
+		return
+	var profile := _footstep_profile(_footstep_surface_at(foot_position))
+	var player := footstep_audio.prepare(FOOTSTEP_SFX, "SFX")
+	player.volume_db = randf_range(profile.z, profile.w) + footstep_volume_offset_db
+	player.pitch_scale = randf_range(profile.x, profile.y) * footstep_pitch_modifier
+	player.call_deferred("play")
+
+
+func _footstep_surface_at(foot_position: Vector3) -> StringName:
+	var query := PhysicsRayQueryParameters3D.create(
+		foot_position + Vector3.UP * 0.3,
+		foot_position + Vector3.DOWN * 0.55,
+		FOOTSTEP_SURFACE_MASK,
+		[get_rid()]
+	)
+	query.collide_with_areas = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return &"concrete"
+	var collider := hit.get("collider") as CollisionObject3D
+	if collider == null:
+		return &"concrete"
+	if collider.has_meta(&"footstep_surface"):
+		return StringName(collider.get_meta(&"footstep_surface"))
+	var surface_hint := String(collider.name).to_lower()
+	for surface in [&"wood", &"carpet", &"metal", &"tile", &"grass"]:
+		if String(surface) in surface_hint:
+			return surface
+	return &"concrete"
+
+
+func _footstep_profile(surface: StringName) -> Vector4:
+	match surface:
+		&"wood":
+			return Vector4(0.62, 0.82, -38.0, -33.0)
+		&"carpet":
+			return Vector4(0.44, 0.58, -43.0, -38.0)
+		&"metal":
+			return Vector4(1.02, 1.28, -40.0, -34.0)
+		&"tile":
+			return Vector4(0.82, 1.02, -40.0, -34.0)
+		&"grass":
+			return Vector4(0.48, 0.68, -43.0, -37.0)
+		_:
+			return Vector4(0.54, 0.72, -39.0, -33.0)
 
 
 func _update_knee_pole(

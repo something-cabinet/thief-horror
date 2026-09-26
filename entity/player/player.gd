@@ -30,7 +30,7 @@ var starter_pistol_scene = preload("res://entity/weapon/gun/StarterPistol.tscn")
 var pickup_item_scene = preload("res://entity/item/PickupItem.tscn")
 var interaction_outline_shader = preload("res://material/interaction_outline.gdshader")
 
-const MAX_SPEED = 4.0
+const MAX_SPEED = 1.5
 const JUMP_FORCE = 5.0
 
 const MAX_FALL_SPEED = 50.0
@@ -58,6 +58,9 @@ const INTERACTION_COLLISION_MASK := 1 | 8 # World/interactables and dropped item
 const THROW_SPEED := 7.0
 const THROW_SPAWN_DISTANCE := 0.8
 const OUTLINE_VISIBILITY_MASK := 1 << 19
+const FOOTSTEP_SURFACE_MASK := (1 << 0) | (1 << 4)
+const FOOTSTEP_MIN_DISTANCE := 0.95
+const FOOTSTEP_MAX_DISTANCE := 1.15
 
 const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
@@ -103,6 +106,8 @@ var jump_recovery_valid := false
 var airborne_wedge_frames := 0
 var dialogue_active := false
 var preview_mode := false
+var footstep_distance_traveled := 0.525
+var next_footstep_distance := 1.05
 
 func _ready():
 	GameManager.player = self
@@ -278,8 +283,8 @@ func _update_interaction_target() -> void:
 
 
 func _find_visible_interactable(ray_start: Vector3, ray_end: Vector3) -> Node3D:
-	# The first physics hit is the visibility test. A wall, vehicle body, or any
-	# other collider in front of an interactable blocks it for every item type.
+	# Only the first physical hit can be interacted with. Furniture, walls, doors,
+	# and drawer panels therefore block loot exactly as they appear to.
 	var query := PhysicsRayQueryParameters3D.create(
 		ray_start,
 		ray_end,
@@ -289,7 +294,7 @@ func _find_visible_interactable(ray_start: Vector3, ray_end: Vector3) -> Node3D:
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return null
-	var collider := result.collider as Node3D
+	var collider := result.get("collider") as Node3D
 	return collider if collider != null and collider.is_in_group("interactable") else null
 
 
@@ -437,7 +442,7 @@ func _refresh_held_item() -> void:
 	var longest_side := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
 	if longest_side <= 0.0001:
 		return
-	var scale_factor := 0.34 / longest_side
+	var scale_factor := _held_item_display_size(item) / longest_side
 	model.scale = Vector3.ONE * scale_factor
 	model.position = - bounds.get_center() * scale_factor
 
@@ -451,15 +456,36 @@ func _selected_item_is_gun() -> bool:
 func _held_item_basis(item: Dictionary) -> Basis:
 	var item_id := StringName(item.get("id", &""))
 	var rotation_degrees := Vector3(-12, 24, -4)
-	if item_id == &"notebook":
-		rotation_degrees = Vector3(78, 12, -4)
-	elif item_id == &"cigarettes" or item_id == &"antique_radio":
-		rotation_degrees = Vector3(-12, 204, -4)
+	match item_id:
+		&"notebook", &"cash", &"book":
+			rotation_degrees = Vector3(68, 12, -8)
+		&"coins":
+			rotation_degrees = Vector3(66, -10, -14)
+		&"gold_bar":
+			rotation_degrees = Vector3(-22, -32, 10)
+		&"photo_frame", &"painting":
+			rotation_degrees = Vector3(-8, 204, -4)
+		&"cigarettes", &"antique_radio":
+			rotation_degrees = Vector3(-12, 204, -4)
 	var held_basis := Basis.from_euler(rotation_degrees * (PI / 180.0))
 	if item_id == &"notebook":
 		# Spin within the cover plane without flipping the front face away.
 		held_basis *= Basis(Vector3.UP, PI)
 	return held_basis
+
+
+func _held_item_display_size(item: Dictionary) -> float:
+	match StringName(item.get("id", &"")):
+		&"coins":
+			return 0.20
+		&"cash", &"gold_bar":
+			return 0.24
+		&"pills", &"canned_food":
+			return 0.25
+		&"book", &"photo_frame", &"painting":
+			return 0.28
+		_:
+			return 0.34
 
 
 func _calculate_model_bounds(root: Node3D) -> AABB:
@@ -556,6 +582,7 @@ func _physics_process(delta):
 	if debug_label.visible:
 		_log_stuck_movement(movement_start, requested_horizontal_motion)
 		show_debug_label()
+	_update_footsteps(movement_start)
 
 	var gun_sway_velocity = velocity * transform.basis
 	if not is_swapping_gun:
@@ -681,6 +708,66 @@ func _recover_from_airborne_wedge(movement_start: Vector3) -> void:
 
 func play_sfx(sfx: AudioStream):
 	audio_player.play(sfx, "SFX", true)
+
+func _update_footsteps(movement_start: Vector3) -> void:
+	var horizontal_distance := Vector2(
+		global_position.x - movement_start.x,
+		global_position.z - movement_start.z
+	).length()
+	if not is_on_floor() or raw_input_dir == Vector2.ZERO or horizontal_distance < 0.0005:
+		footstep_distance_traveled = next_footstep_distance * 0.5
+		return
+
+	footstep_distance_traveled += horizontal_distance
+	if footstep_distance_traveled < next_footstep_distance:
+		return
+	footstep_distance_traveled = fmod(footstep_distance_traveled, next_footstep_distance)
+	next_footstep_distance = randf_range(FOOTSTEP_MIN_DISTANCE, FOOTSTEP_MAX_DISTANCE)
+	var profile := _footstep_profile(_current_footstep_surface())
+	var footstep_player := audio_player.prepare(landing_sfx, "SFX")
+	footstep_player.volume_db = randf_range(profile.z, profile.w)
+	footstep_player.pitch_scale = randf_range(profile.x, profile.y)
+	footstep_player.call_deferred("play")
+
+
+func _current_footstep_surface() -> StringName:
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position + Vector3.UP * 0.25,
+		global_position + Vector3.DOWN * 1.0,
+		FOOTSTEP_SURFACE_MASK,
+		[get_rid()]
+	)
+	query.collide_with_areas = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return &"concrete"
+	var collider := hit.get("collider") as CollisionObject3D
+	if collider == null:
+		return &"concrete"
+	if collider.has_meta(&"footstep_surface"):
+		return StringName(collider.get_meta(&"footstep_surface"))
+	var surface_hint := String(collider.name).to_lower()
+	for surface in [&"wood", &"carpet", &"metal", &"tile", &"grass"]:
+		if String(surface) in surface_hint:
+			return surface
+	return &"concrete"
+
+
+func _footstep_profile(surface: StringName) -> Vector4:
+	# x/y are pitch range; z/w are volume range in decibels.
+	match surface:
+		&"wood":
+			return Vector4(0.62, 0.82, -38.0, -33.0)
+		&"carpet":
+			return Vector4(0.44, 0.58, -43.0, -38.0)
+		&"metal":
+			return Vector4(1.02, 1.28, -40.0, -34.0)
+		&"tile":
+			return Vector4(0.82, 1.02, -40.0, -34.0)
+		&"grass":
+			return Vector4(0.48, 0.68, -43.0, -37.0)
+		_:
+			return Vector4(0.54, 0.72, -39.0, -33.0)
 
 func show_debug_label():
 	var h_speed = snapped(Vector3(velocity.x, 0, velocity.z).length(), 0.1)

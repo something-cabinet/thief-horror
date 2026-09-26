@@ -5,6 +5,7 @@ const NOTEBOOK_COLLISION_THICKNESS := 0.15
 const DEFAULT_MIN_COLLISION_SIZE := 0.025
 const FLOOR_GUARD_DISTANCE := 0.45
 const FLOOR_GUARD_SAMPLE_OFFSET := 0.12
+const SUPPORT_CLEARANCE := 0.003
 
 @export var item_id: StringName
 @export var display_name := "Item"
@@ -14,6 +15,7 @@ const FLOOR_GUARD_SAMPLE_OFFSET := 0.12
 @export var icon: Texture2D
 @export_range(0.2, 1.5, 0.05) var display_size := 0.55
 @export_range(0.05, 10.0, 0.05) var item_mass := 0.5
+@export var fit_size_limit := Vector3.ZERO
 
 @onready var model_anchor: Node3D = $ModelAnchor
 @onready var temporary_collider: CollisionShape3D = $TemporaryCollider # To avoid Godot warning
@@ -23,6 +25,8 @@ var normalized_bounds := AABB()
 var actual_normalized_size := Vector3.ZERO
 var previous_physics_transform := Transform3D.IDENTITY
 var has_previous_physics_transform := false
+var follows_parent_support := false
+var support_local_transform := Transform3D.IDENTITY
 
 
 func _ready() -> void:
@@ -45,10 +49,50 @@ func _ready() -> void:
 	model_anchor.add_child(model_instance)
 	model_instance.process_mode = Node.PROCESS_MODE_DISABLED
 	_prepare_model()
+	_fit_model_to_limit()
 	_create_compound_collision()
 
 
+func place_on_local_support(
+	size_limit: Vector3,
+	random: RandomNumberGenerator
+) -> void:
+	var yaw := rotation.y
+	var footprint_x := (
+		absf(cos(yaw)) * actual_normalized_size.x
+		+ absf(sin(yaw)) * actual_normalized_size.z
+	)
+	var footprint_z := (
+		absf(sin(yaw)) * actual_normalized_size.x
+		+ absf(cos(yaw)) * actual_normalized_size.z
+	)
+	var x_room := maxf(0.0, size_limit.x - footprint_x) * 0.42
+	var z_room := maxf(0.0, size_limit.z - footprint_z) * 0.42
+	position = Vector3(
+		random.randf_range(-x_room, x_room),
+		actual_normalized_size.y * 0.5 + SUPPORT_CLEARANCE,
+		random.randf_range(-z_room, z_room)
+	)
+
+
+func attach_to_parent_support() -> void:
+	var parent := get_parent_node_3d()
+	if parent == null:
+		return
+	freeze = true
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	support_local_transform = transform
+	follows_parent_support = true
+	set_physics_process(true)
+	global_transform = parent.global_transform * support_local_transform
+
+
 func _physics_process(_delta: float) -> void:
+	if follows_parent_support:
+		var parent := get_parent_node_3d()
+		if parent != null:
+			global_transform = parent.global_transform * support_local_transform
+		return
 	var current_transform := global_transform
 	if not has_previous_physics_transform:
 		previous_physics_transform = current_transform
@@ -125,7 +169,7 @@ func _support_extent_along(normal: Vector3, body_basis: Basis) -> float:
 	)
 
 
-func collect(player: Player) -> bool:
+func collect(player) -> bool:
 	if not player.add_inventory_item(
 		item_id,
 		display_name,
@@ -141,7 +185,7 @@ func collect(player: Player) -> bool:
 	return true
 
 
-func interact(player: Player) -> bool:
+func interact(player) -> bool:
 	return collect(player)
 
 
@@ -181,6 +225,35 @@ func _prepare_model() -> void:
 			maxf(bounds.size.z * scale_factor, minimum_collision_size)
 		)
 	)
+
+
+func _fit_model_to_limit() -> void:
+	if fit_size_limit.x <= 0.0 or fit_size_limit.y <= 0.0 or fit_size_limit.z <= 0.0:
+		return
+	var yaw := rotation.y
+	var footprint_x := (
+		absf(cos(yaw)) * actual_normalized_size.x
+		+ absf(sin(yaw)) * actual_normalized_size.z
+	)
+	var footprint_z := (
+		absf(sin(yaw)) * actual_normalized_size.x
+		+ absf(cos(yaw)) * actual_normalized_size.z
+	)
+	var fit_scale := minf(
+		fit_size_limit.x / maxf(footprint_x, 0.001),
+		minf(
+			fit_size_limit.y / maxf(actual_normalized_size.y, 0.001),
+			fit_size_limit.z / maxf(footprint_z, 0.001)
+		)
+	) * 0.76
+	if fit_scale >= 1.0:
+		return
+	display_size *= fit_scale
+	model_instance.scale *= fit_scale
+	model_instance.position *= fit_scale
+	actual_normalized_size *= fit_scale
+	normalized_bounds.position *= fit_scale
+	normalized_bounds.size *= fit_scale
 
 
 func _create_compound_collision() -> void:

@@ -1,11 +1,14 @@
 extends Node3D
 
+const LOOT_SOCKET_SCRIPT := preload("res://entity/item/loot_socket.gd")
+const HOUSE_LOOT_SPAWNER := preload("res://entity/item/house_loot_spawner.gd")
 const TELEVISION_SCREEN_SHADER := preload("res://material/television_screen.gdshader")
 const BLACKBOARD_PLAN_TEXTURE := preload("res://asset/texture/blackboard_robbery_plan.png")
 const BLACKBOARD_CHALK_SHADER := preload("res://material/blackboard_chalk_overlay.gdshader")
 const FRONT_DOOR_STAGING_OFFSET := Vector3(19.816, 0.0, 0.0)
 const RED_SIDE_DOOR_FRAME := &"Marco_P_013"
 const RED_SIDE_DOOR_COLOR := Color(0.82, 0.055, 0.035, 1.0)
+const FOOTSTEP_AREA_LAYER := 1 << 4
 
 const STRUCTURE_COLLISION_PREFIXES := [
 	"Casa",
@@ -104,6 +107,11 @@ const SOLID_PROP_PREFIXES := [
 ]
 const LAMP_PREFIXES := ["Lampara", "Foco"]
 const LAMP_MATERIALS := ["Lampara1", "Lampara2", "Lampara3.001", "Foco"]
+const LOOT_STORAGE_PREFIXES := [
+	"Al_", "Closet", "Cofre", "Estante", "Librero", "Mesa",
+]
+const LOOT_SHELF_PREFIXES := ["Estanteria", "Librero"]
+const LOOT_EXCLUDED_STORAGE: Array[StringName] = []
 
 
 func _ready() -> void:
@@ -117,6 +125,7 @@ func _ready() -> void:
 	_setup_refrigerator_doors()
 	_setup_van_doors()
 	_setup_cabinet_parts()
+	_setup_loot_sockets()
 	_setup_laundry_lids()
 	_setup_interactable_televisions()
 	_setup_interactable_lights()
@@ -126,6 +135,9 @@ func _ready() -> void:
 		var mesh_instance := child as MeshInstance3D
 		if mesh_instance.mesh == null or _has_interactable_ancestor(mesh_instance):
 			continue
+		var footstep_surface := _footstep_surface_for_mesh(mesh_instance)
+		if footstep_surface == &"carpet":
+			_setup_footstep_area(mesh_instance, footstep_surface)
 
 		var is_solid_prop := (
 			mesh_instance.name == &"Ban"
@@ -134,14 +146,17 @@ func _ready() -> void:
 		)
 		var is_structure := _needs_structure_collision(mesh_instance.name)
 		var uses_exact_prop_collision := (
-			mesh_instance.name in [&"Ban", &"Cofre"]
+			mesh_instance.name in [&"Ban", &"Cofre", &"Refrigerador"]
 			or _matches_prefix(mesh_instance.name, EXACT_PROP_COLLISION_PREFIXES)
+			or _matches_prefix(mesh_instance.name, LOOT_STORAGE_PREFIXES)
+			or _matches_prefix(mesh_instance.name, LOOT_SHELF_PREFIXES)
 		)
 		if not is_solid_prop and not is_structure:
 			continue
 
 		var body := StaticBody3D.new()
 		body.name = "%sCollision" % mesh_instance.name
+		body.set_meta(&"footstep_surface", footstep_surface)
 		var collision := CollisionShape3D.new()
 		if is_solid_prop and not uses_exact_prop_collision:
 			var bounds := mesh_instance.mesh.get_aabb()
@@ -165,6 +180,16 @@ func _ready() -> void:
 		structure_count,
 		prop_count,
 	])
+	if not bool(ProjectSettings.get_setting("thief_horror/disable_runtime_loot", false)):
+		call_deferred("_spawn_runtime_loot")
+
+
+func _spawn_runtime_loot() -> void:
+	# Wait until imported furniture collision is live before rejecting sockets
+	# hidden inside unrelated props such as crates and televisions.
+	await get_tree().physics_frame
+	var loot_count: int = HOUSE_LOOT_SPAWNER.spawn_for_house(self)
+	print("Runtime house loot ready: %d collectible items" % loot_count)
 
 
 func _move_staging_to_front_door() -> void:
@@ -447,6 +472,485 @@ func _setup_cabinet_parts() -> void:
 		)
 
 
+func _setup_loot_sockets() -> void:
+	_setup_drawer_loot_sockets()
+	_setup_closed_storage_loot_sockets()
+	_setup_refrigerator_loot_sockets()
+	_setup_shelf_loot_sockets()
+	_setup_table_loot_sockets()
+	print("House loot sockets ready: %d" % get_tree().get_nodes_in_group("loot_socket").size())
+
+
+func _setup_drawer_loot_sockets() -> void:
+	for child: Node in find_children("*", "SlidingInteractable", true, false):
+		var drawer := child as SlidingInteractable
+		if drawer.display_name != "drawer" or drawer.moving_collision == null:
+			continue
+		var box := drawer.moving_collision.shape as BoxShape3D
+		if box == null:
+			continue
+		var local_position := drawer.moving_collision.position
+		local_position.y -= box.size.y * 0.28
+		var drawer_meshes := drawer.find_children("*", "MeshInstance3D", true, false)
+		if not drawer_meshes.is_empty():
+			var surface_levels := _upward_surface_levels(
+				drawer_meshes[0] as MeshInstance3D
+			)
+			if not surface_levels.is_empty():
+				var current_world_y := drawer.to_global(local_position).y
+				var nearest_surface_y: float = surface_levels[0]
+				for surface_y: float in surface_levels:
+					if absf(surface_y - current_world_y) < absf(
+						nearest_surface_y - current_world_y
+					):
+						nearest_surface_y = surface_y
+				local_position.y += nearest_surface_y - current_world_y
+		var usable_size := Vector3(
+			maxf(0.12, box.size.x * 0.66),
+			maxf(0.08, box.size.y * 0.34),
+			maxf(0.12, box.size.z * 0.66)
+		)
+		_add_loot_socket(
+			drawer,
+			local_position,
+			"drawer",
+			usable_size,
+			drawer
+		)
+
+
+func _setup_closed_storage_loot_sockets() -> void:
+	var containers: Array[MeshInstance3D] = []
+	for child: Node in find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
+		if (
+			mesh.mesh != null
+			and mesh.name not in LOOT_EXCLUDED_STORAGE
+			and _matches_prefix(mesh.name, LOOT_STORAGE_PREFIXES)
+		):
+			containers.append(mesh)
+
+	var matched := {}
+	for child: Node in find_children("*", "HingedInteractable", true, false):
+		var door := child as HingedInteractable
+		if door.display_name != "cabinet door" or door.moving_collision == null:
+			continue
+		var door_center := door.to_global(door.moving_collision.position)
+		var container := _nearest_storage_container(door_center, containers)
+		if container != null:
+			# Each independently openable door gets its own populated compartment.
+			# Grouping every door on a large bookshelf/table into one socket left
+			# the other visible cavities empty.
+			matched[door.get_instance_id()] = {
+				"container": container,
+				"doors": [door],
+			}
+
+	for record: Dictionary in matched.values():
+		var container := record.container as MeshInstance3D
+		var doors: Array = record.doors
+		var bounds := _world_bounds(container)
+		var type := "wardrobe" if String(container.name).begins_with("Closet") else "cabinet"
+		var primary_door := doors[0] as HingedInteractable
+		var primary_distance := INF
+		for door_node: Node in doors:
+			var door := door_node as HingedInteractable
+			var door_center := door.to_global(door.moving_collision.position)
+			var closest := Vector3(
+				clampf(door_center.x, bounds.position.x, bounds.end.x),
+				clampf(door_center.y, bounds.position.y, bounds.end.y),
+				clampf(door_center.z, bounds.position.z, bounds.end.z)
+			)
+			var distance := closest.distance_to(door_center)
+			if distance < primary_distance:
+				primary_distance = distance
+				primary_door = door
+		var primary_box := primary_door.moving_collision.shape as BoxShape3D
+		var opening_center := primary_door.to_global(
+			primary_door.moving_collision.position
+		)
+		var horizontal_lid := (
+			primary_box.size.y
+			< minf(primary_box.size.x, primary_box.size.z) * 0.35
+		)
+		var support_y := opening_center.y - primary_box.size.y * 0.30
+		# The imported container AABB includes feet and trim below the usable
+		# opening. Place loot from the door opening instead of that outer AABB.
+		# Keep the socket well behind the closed-door plane. A shallow 30% inset
+		# allowed wide/rotated loot to protrude through cabinet fronts.
+		var world_position := opening_center.lerp(bounds.get_center(), 0.62)
+		world_position.y = support_y
+		var surface_points := _upward_surface_points(container)
+		var nearest_surface_distance := INF
+		if horizontal_lid:
+			# This is a lift-up hatch, not a vertical cabinet front. Put loot on
+			# the highest interior floor below the closed lid instead of on the lid.
+			var lid_underside := opening_center.y - primary_box.size.y * 0.5
+			var interior_surface_y := -INF
+			for point: Dictionary in surface_points:
+				var candidate_y: float = point.center.y
+				if (
+					candidate_y <= lid_underside - 0.04
+					and candidate_y >= lid_underside - 0.40
+					and candidate_y > interior_surface_y
+				):
+					interior_surface_y = candidate_y
+			if not is_inf(interior_surface_y):
+				support_y = interior_surface_y
+			world_position.y = support_y
+		for point: Dictionary in surface_points:
+			var surface_center: Vector3 = point.center
+			if (
+				horizontal_lid
+				and surface_center.y
+					> opening_center.y - primary_box.size.y * 0.5 - 0.04
+			):
+				continue
+			var distance := absf(surface_center.y - support_y)
+			if distance <= 0.16 and distance < nearest_surface_distance:
+				nearest_surface_distance = distance
+				world_position.y = surface_center.y
+		var size_limit := Vector3(
+			maxf(0.16, bounds.size.x * 0.45),
+			minf(0.42, bounds.size.y * 0.55),
+			maxf(0.16, bounds.size.z * 0.45)
+		)
+		world_position.x = clampf(
+			world_position.x,
+			bounds.position.x + size_limit.x * 0.5,
+			bounds.end.x - size_limit.x * 0.5
+		)
+		world_position.z = clampf(
+			world_position.z,
+			bounds.position.z + size_limit.z * 0.5,
+			bounds.end.z - size_limit.z * 0.5
+		)
+		var socket := _add_world_loot_socket(
+			world_position,
+			type,
+			size_limit,
+			container
+		) as LootSocket
+		var inward_direction := bounds.get_center() - opening_center
+		inward_direction.y = 0.0
+		if not inward_direction.is_zero_approx():
+			socket.set_meta(&"storage_inward_world", inward_direction.normalized())
+		socket.set_meta(&"loot_capacity", 1)
+		for door_node: Node in doors:
+			socket.add_support(door_node)
+
+
+func _setup_refrigerator_loot_sockets() -> void:
+	var refrigerator := find_child("Refrigerador", true, false) as MeshInstance3D
+	if refrigerator == null or refrigerator.mesh == null:
+		return
+	var refrigerator_bounds := _world_bounds(refrigerator)
+	var surface_points := _merged_upward_surface_points(refrigerator)
+	for child: Node in find_children("*", "HingedInteractable", true, false):
+		var door := child as HingedInteractable
+		if door.display_name not in ["freezer door", "refrigerator door"]:
+			continue
+		var box := door.moving_collision.shape as BoxShape3D
+		if box == null:
+			continue
+		var door_center := door.to_global(door.moving_collision.position)
+		var vertical_margin := minf(0.12, box.size.y * 0.22)
+		var door_bottom := door_center.y - box.size.y * 0.5 + vertical_margin
+		var door_top := door_center.y + box.size.y * 0.5 - vertical_margin
+		var opening_direction := door_center - refrigerator_bounds.get_center()
+		opening_direction.y = 0.0
+		opening_direction = opening_direction.normalized()
+		var created_count := 0
+		for point: Dictionary in surface_points:
+			var world_position := point.center as Vector3
+			if world_position.y <= door_bottom or world_position.y >= door_top:
+				continue
+			# Bring loot toward the shelf opening while leaving enough depth around
+			# every model. This keeps it visible and clear of the rear wall.
+			world_position += opening_direction * 0.10
+			var size_limit := Vector3(
+				minf(0.58, refrigerator_bounds.size.x * 0.62),
+				0.18 if door.display_name == "freezer door" else 0.28,
+				minf(0.23, refrigerator_bounds.size.z * 0.36)
+			)
+			var placement_size := Vector3(
+				minf(0.62, refrigerator_bounds.size.x * 0.68),
+				size_limit.y,
+				minf(0.18, refrigerator_bounds.size.z * 0.28)
+			)
+			var socket := _add_world_loot_socket(
+				world_position,
+				"fridge",
+				size_limit,
+				refrigerator,
+				placement_size
+			) as LootSocket
+			socket.add_support(door)
+			created_count += 1
+		if created_count != (1 if door.display_name == "freezer door" else 3):
+			push_warning("Unexpected %s shelf count: %d" % [
+				door.display_name, created_count,
+			])
+		_thin_refrigerator_door_collision(door, refrigerator)
+
+
+func _thin_refrigerator_door_collision(
+	door: HingedInteractable,
+	refrigerator: MeshInstance3D
+) -> void:
+	var collision := door.moving_collision
+	var box := collision.shape as BoxShape3D
+	if box == null:
+		return
+	var size := box.size
+	var depth_axis := (
+		Vector3.AXIS_X if size.x <= size.z else Vector3.AXIS_Z
+	)
+	var thickness := minf(0.07, size[depth_axis] * 0.35)
+	var world_center := door.to_global(collision.position)
+	var refrigerator_center := _world_bounds(refrigerator).get_center()
+	var depth_direction := Vector3.RIGHT if depth_axis == Vector3.AXIS_X else Vector3.BACK
+	var away_sign := signf((world_center - refrigerator_center).dot(depth_direction))
+	if is_zero_approx(away_sign):
+		away_sign = 1.0
+	world_center[depth_axis] += away_sign * (size[depth_axis] - thickness) * 0.5
+	size[depth_axis] = thickness
+	box.size = size
+	box.margin = 0.003
+	collision.position = door.to_local(world_center)
+
+
+func _setup_shelf_loot_sockets() -> void:
+	for child: Node in find_children("*", "MeshInstance3D", true, false):
+		var shelf := child as MeshInstance3D
+		if shelf.mesh == null or not _matches_prefix(shelf.name, LOOT_SHELF_PREFIXES):
+			continue
+		var bounds := _world_bounds(shelf)
+		var surface_points := _merged_upward_surface_points(shelf)
+		var interior_points: Array[Dictionary] = []
+		var top_margin := maxf(0.055, bounds.size.y * 0.025)
+		for point: Dictionary in surface_points:
+			if (
+				bounds.size.y <= 1.4
+				or (point.center as Vector3).y < bounds.end.y - top_margin
+			):
+				interior_points.append(point)
+		while interior_points.size() > 6:
+			interior_points.remove_at(0)
+		if interior_points.is_empty():
+			var fallback_count := clampi(roundi(bounds.size.y / 0.62), 1, 5)
+			for level in fallback_count:
+				var center := bounds.get_center()
+				center.y = (
+					bounds.position.y
+					+ bounds.size.y * (float(level) + 0.22) / float(fallback_count)
+				)
+				interior_points.append({"center": center})
+		var width_on_x := bounds.size.x >= bounds.size.z
+		var width := bounds.size.x if width_on_x else bounds.size.z
+		var column_count := clampi(roundi(width / 0.95), 1, 4)
+		if String(shelf.name).begins_with("Librero") and width >= 3.0:
+			column_count = 2
+		for surface: Dictionary in interior_points:
+			for column in column_count:
+				var world_position := bounds.get_center()
+				world_position.y = (surface.center as Vector3).y
+				var lateral := width * (
+					(float(column) + 0.5) / float(column_count) - 0.5
+				) * (1.12 if column_count == 2 and width >= 3.0 else 0.76)
+				if width_on_x:
+					world_position.x += lateral
+				else:
+					world_position.z += lateral
+				var size_limit := Vector3(
+					minf(0.38, bounds.size.x * 0.62 / float(column_count)),
+					minf(0.36, bounds.size.y * 0.42 / float(interior_points.size())),
+					minf(0.38, bounds.size.z * 0.62 / float(column_count))
+				)
+				var placement_size := size_limit
+				var lateral_span := width * 0.76 / float(column_count)
+				if width_on_x:
+					placement_size.x = maxf(size_limit.x, lateral_span)
+					placement_size.z = maxf(size_limit.z, bounds.size.z * 0.62)
+				else:
+					placement_size.x = maxf(size_limit.x, bounds.size.x * 0.62)
+					placement_size.z = maxf(size_limit.z, lateral_span)
+				_add_world_loot_socket(
+					world_position,
+					"shelf",
+					size_limit,
+					shelf,
+					placement_size
+				)
+
+
+func _setup_table_loot_sockets() -> void:
+	var tables := find_child("Mesas", true, false)
+	if tables == null:
+		return
+	for child: Node in tables.get_children():
+		var table := child as MeshInstance3D
+		if table == null or table.mesh == null or not String(table.name).begins_with("Mesa"):
+			continue
+		var bounds := _world_bounds(table)
+		var world_position := bounds.get_center()
+		var surface_levels := _upward_surface_levels(table)
+		world_position.y = (
+			bounds.end.y
+			if surface_levels.is_empty()
+			else surface_levels.back()
+		)
+		var size_limit := Vector3(
+			minf(0.48, bounds.size.x * 0.55),
+			0.45,
+			minf(0.48, bounds.size.z * 0.55)
+		)
+		var placement_size := Vector3(
+			maxf(size_limit.x, bounds.size.x * 0.70),
+			size_limit.y,
+			maxf(size_limit.z, bounds.size.z * 0.70)
+		)
+		_add_world_loot_socket(
+			world_position,
+			"table",
+			size_limit,
+			table,
+			placement_size
+		)
+
+
+func _upward_surface_levels(mesh_instance: MeshInstance3D) -> Array[float]:
+	var surface_points := _merged_upward_surface_points(mesh_instance)
+	var result: Array[float] = []
+	for point: Dictionary in surface_points:
+		result.append((point.center as Vector3).y)
+	while result.size() > 6:
+		result.remove_at(0)
+	return result
+
+
+func _merged_upward_surface_points(mesh_instance: MeshInstance3D) -> Array[Dictionary]:
+	var surface_points := _upward_surface_points(mesh_instance)
+	if surface_points.is_empty():
+		return surface_points
+	var largest_area := 0.0
+	for point: Dictionary in surface_points:
+		largest_area = maxf(largest_area, float(point.area))
+	var merged: Array[Dictionary] = []
+	for point: Dictionary in surface_points:
+		if float(point.area) < largest_area * 0.18:
+			continue
+		if (
+			not merged.is_empty()
+			and (point.center as Vector3).y - (merged.back().center as Vector3).y <= 0.075
+		):
+			# Two close levels are the bottom/top faces of one shelf board.
+			# The higher face is the support surface.
+			merged[-1] = point
+		else:
+			merged.append(point)
+	return merged
+
+
+func _upward_surface_points(mesh_instance: MeshInstance3D) -> Array[Dictionary]:
+	var level_data := {}
+	for surface_index in mesh_instance.mesh.get_surface_count():
+		var arrays := mesh_instance.mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var triangle_count := indices.size() / 3 if not indices.is_empty() else vertices.size() / 3
+		for triangle_index in triangle_count:
+			var vertex_indices := PackedInt32Array([
+				indices[triangle_index * 3] if not indices.is_empty() else triangle_index * 3,
+				indices[triangle_index * 3 + 1] if not indices.is_empty() else triangle_index * 3 + 1,
+				indices[triangle_index * 3 + 2] if not indices.is_empty() else triangle_index * 3 + 2,
+			])
+			var a := mesh_instance.global_transform * vertices[vertex_indices[0]]
+			var b := mesh_instance.global_transform * vertices[vertex_indices[1]]
+			var c := mesh_instance.global_transform * vertices[vertex_indices[2]]
+			var cross := (b - a).cross(c - a)
+			var area := cross.length() * 0.5
+			if area < 0.0004 or absf(cross.normalized().y) < 0.72:
+				continue
+			var centroid := (a + b + c) / 3.0
+			var level_key := roundi(centroid.y * 40.0)
+			if not level_data.has(level_key):
+				level_data[level_key] = {
+					"area": 0.0,
+					"weighted_center": Vector3.ZERO,
+				}
+			level_data[level_key].area += area
+			level_data[level_key].weighted_center += centroid * area
+
+	var result: Array[Dictionary] = []
+	for level_key: int in level_data:
+		var data: Dictionary = level_data[level_key]
+		result.append({
+			"area": data.area,
+			"center": data.weighted_center / data.area,
+		})
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return (a.center as Vector3).y < (b.center as Vector3).y
+	)
+	return result
+
+
+func _nearest_storage_container(
+	world_position: Vector3,
+	containers: Array[MeshInstance3D]
+) -> MeshInstance3D:
+	var nearest: MeshInstance3D
+	var nearest_distance := INF
+	for container in containers:
+		var bounds := _world_bounds(container).grow(0.12)
+		var closest := Vector3(
+			clampf(world_position.x, bounds.position.x, bounds.end.x),
+			clampf(world_position.y, bounds.position.y, bounds.end.y),
+			clampf(world_position.z, bounds.position.z, bounds.end.z)
+		)
+		var distance := closest.distance_to(world_position)
+		if distance < nearest_distance:
+			nearest = container
+			nearest_distance = distance
+	# Some imported door meshes sit nearly a meter outside their parent mesh AABB
+	# (the panel was authored separately). The nearest eligible furniture remains
+	# unambiguous at this radius.
+	return nearest if nearest_distance <= 1.15 else null
+
+
+func _add_world_loot_socket(
+	world_position: Vector3,
+	type: String,
+	size_limit: Vector3,
+	source: Node,
+	placement_size: Vector3 = Vector3.ZERO
+) -> Marker3D:
+	return _add_loot_socket(
+		self,
+		to_local(world_position),
+		type,
+		size_limit,
+		source,
+		placement_size
+	)
+
+
+func _add_loot_socket(
+	parent: Node3D,
+	local_position: Vector3,
+	type: String,
+	size_limit: Vector3,
+	source: Node,
+	placement_size: Vector3 = Vector3.ZERO
+) -> Marker3D:
+	var socket := LOOT_SOCKET_SCRIPT.new() as Marker3D
+	socket.name = "LootSocket_%s" % type.capitalize().replace(" ", "")
+	parent.add_child(socket)
+	socket.position = local_position
+	socket.configure(type, size_limit, source, placement_size)
+	return socket
+
+
 func _setup_laundry_lids() -> void:
 	for mesh in _find_meshes(&"Lavanderia", "Tapa"):
 		var bounds := _world_bounds(mesh)
@@ -674,9 +1178,12 @@ func _configure_imported_drawer(
 		absf(drawer.slide_axis_world.x) * drawer_bounds.size.x
 		+ absf(drawer.slide_axis_world.z) * drawer_bounds.size.z
 	)
-	var safe_open_distance := clampf(drawer_depth * 0.55, 0.22, 0.48)
+	# Expose most of the cavity. A half-depth opening leaves rear loot visually
+	# and physically trapped under the cabinet even though the drawer is "open".
+	var safe_open_distance := clampf(drawer_depth * 0.85, 0.28, 0.72)
 	drawer.open_direction = outward_direction
 	drawer.travel_distance = maxf(safe_open_distance, source_extension)
+	drawer.configure_open_top_collision(drawer_bounds)
 	drawer.closed_transform.origin -= (
 		drawer.slide_axis_parent * outward_direction * source_extension
 	)
@@ -811,6 +1318,42 @@ func _needs_structure_collision(node_name: StringName) -> bool:
 	if text in COLLISION_EXACT_NAMES:
 		return true
 	return _matches_prefix(node_name, STRUCTURE_COLLISION_PREFIXES)
+
+
+func _footstep_surface_for_mesh(mesh_instance: MeshInstance3D) -> StringName:
+	var material_names := ""
+	for surface_index in mesh_instance.mesh.get_surface_count():
+		var material := mesh_instance.get_active_material(surface_index)
+		if material != null:
+			material_names += " " + material.resource_name.to_lower()
+	var mesh_name := String(mesh_instance.name).to_lower()
+	var surface_hint := mesh_name + material_names
+	if "carpet" in surface_hint or "alfombra" in surface_hint or "alfonbra" in surface_hint:
+		return &"carpet"
+	if "metal" in surface_hint:
+		return &"metal"
+	if "madera" in surface_hint or "wood" in surface_hint:
+		return &"wood"
+	if "pasto" in surface_hint or "grass" in surface_hint:
+		return &"grass"
+	if "piso2" in surface_hint or "piso_cocina" in surface_hint or "piso_piscina" in surface_hint:
+		return &"tile"
+	return &"concrete"
+
+
+func _setup_footstep_area(mesh_instance: MeshInstance3D, surface: StringName) -> void:
+	var shape := mesh_instance.mesh.create_trimesh_shape()
+	if shape == null:
+		return
+	var area := Area3D.new()
+	area.name = "%sFootstepArea" % mesh_instance.name
+	area.collision_layer = FOOTSTEP_AREA_LAYER
+	area.collision_mask = 0
+	area.set_meta(&"footstep_surface", surface)
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	mesh_instance.add_child(area)
+	area.add_child(collision)
 
 
 func _matches_prefix(node_name: StringName, prefixes: Array) -> bool:

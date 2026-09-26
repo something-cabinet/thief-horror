@@ -48,6 +48,8 @@ func _ready() -> void:
 	player.set_physics_process(false)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	await get_tree().process_frame
+	await _verify_runtime_loot_interaction(map)
 	await _verify_house_navigation(map)
 	await _verify_granny_porch()
 	await _verify_granny_upper_stair()
@@ -566,6 +568,7 @@ func _verify_interaction_line_of_sight() -> void:
 		Vector3(200.0, 1.0, 204.0),
 		Vector3.ONE
 	)
+	target.collision_layer = 8
 	target.add_to_group("interactable")
 	var blocker := _add_box(
 		"InteractionVisibilityBlocker",
@@ -576,13 +579,100 @@ func _verify_interaction_line_of_sight() -> void:
 	var ray_start := Vector3(200.0, 1.0, 200.0)
 	var ray_end := Vector3(200.0, 1.0, 206.0)
 	if player._find_visible_interactable(ray_start, ray_end) != null:
-		failures.append("interaction ray selects a target through an obstruction")
+		failures.append("interaction ray selects pickup loot through an obstruction")
 	blocker.collision_layer = 0
 	await get_tree().physics_frame
 	if player._find_visible_interactable(ray_start, ray_end) != target:
-		failures.append("interaction ray rejects an unobstructed target")
+		failures.append("interaction ray rejects unobstructed pickup loot")
 	target.queue_free()
 	blocker.queue_free()
+
+
+func _verify_runtime_loot_interaction(map: Node3D) -> void:
+	var drawer_item: PickupItem
+	var shelf_item: PickupItem
+	for child: Node in get_tree().get_nodes_in_group("runtime_loot"):
+		var item := child as PickupItem
+		if item == null or not map.is_ancestor_of(item):
+			continue
+		var socket := item.get_parent() as LootSocket
+		if socket == null:
+			continue
+		if drawer_item == null and socket.socket_type == "drawer":
+			drawer_item = item
+		elif shelf_item == null and socket.socket_type == "shelf":
+			shelf_item = item
+	if drawer_item == null or shelf_item == null:
+		failures.append("runtime loot interaction fixtures were not spawned")
+		return
+
+	var drawer := drawer_item.get_parent().get_parent() as SlidingInteractable
+	drawer.set_open_immediate(true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var open_ray_start := _find_drawer_loot_ray_start(drawer_item, drawer)
+	if open_ray_start == Vector3.INF:
+		failures.append("opened drawer loot cannot be selected by the player ray")
+	else:
+		drawer.set_open_immediate(false)
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		var closed_target := drawer_item.global_position
+		if player._find_visible_interactable(open_ray_start, closed_target) == drawer_item:
+			failures.append("closed drawer exposes its hidden loot")
+
+	if _find_runtime_loot_ray_start(shelf_item) == Vector3.INF:
+		failures.append("shelf loot cannot be selected by the player ray")
+	print("[RUNTIME_LOOT_INTERACTION_TEST] drawer=%s shelf=%s" % [
+		drawer_item.display_name,
+		shelf_item.display_name,
+	])
+
+
+func _find_drawer_loot_ray_start(
+	item: PickupItem,
+	drawer: SlidingInteractable
+) -> Vector3:
+	var target := item.global_position
+	var outward := drawer.slide_axis_world * drawer.open_direction
+	var lateral := Vector3.UP.cross(outward).normalized()
+	for lateral_offset in [0.0, -0.25, 0.25]:
+		for height in [0.45, 0.75, 1.05, 1.35, 1.65]:
+			var ray_start: Vector3 = (
+				target
+				+ outward * 1.2
+				+ lateral * lateral_offset
+				+ Vector3.UP * height
+			)
+			if player._find_visible_interactable(ray_start, target) == item:
+				return ray_start
+	return Vector3.INF
+
+
+func _find_runtime_loot_ray_start(item: PickupItem) -> Vector3:
+	var target := item.global_position
+	var results: Array[String] = []
+	var directions := [
+		Vector3.FORWARD,
+		Vector3.BACK,
+		Vector3.LEFT,
+		Vector3.RIGHT,
+		(Vector3.FORWARD + Vector3.LEFT).normalized(),
+		(Vector3.FORWARD + Vector3.RIGHT).normalized(),
+		(Vector3.BACK + Vector3.LEFT).normalized(),
+		(Vector3.BACK + Vector3.RIGHT).normalized(),
+	]
+	for direction: Vector3 in directions:
+		var ray_start := target + direction * 1.2 + Vector3.UP * 0.45
+		var result := player._find_visible_interactable(ray_start, target)
+		results.append("none" if result == null else String(result.name))
+		if result == item:
+			return ray_start
+	var socket := item.get_parent() as LootSocket
+	print("[RUNTIME_LOOT_RAY_DEBUG] item=%s target=%s support=%s results=%s" % [
+		item.get_path(), target, [] if socket == null else socket.support_nodes, results,
+	])
+	return Vector3.INF
 
 
 func _verify_grandma_gait() -> void:
