@@ -578,7 +578,11 @@ func _update_follow_stuck(delta: float, no_safe_velocity: bool) -> void:
 
 func _follow_target_ground_position() -> Vector3:
 	var target_position := follow_target.global_position
-	var collision := follow_target.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var collision: CollisionShape3D = null
+	for child: Node in follow_target.get_children():
+		if child is CollisionShape3D and not (child as CollisionShape3D).disabled:
+			collision = child
+			break
 	if collision == null or collision.shape == null:
 		return target_position
 	if collision.shape is CapsuleShape3D:

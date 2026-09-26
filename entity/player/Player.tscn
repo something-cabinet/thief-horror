@@ -14,29 +14,37 @@
 [ext_resource type="Script" uid="uid://cdhjq8k8av1mv" path="res://addons/godot_state_charts/atomic_state.gd" id="8_dkhcu"]
 [ext_resource type="Script" uid="uid://do3vrmlf3qx2n" path="res://addons/godot_state_charts/transition.gd" id="10_g5bf6"]
 [ext_resource type="PackedScene" uid="uid://b3vol18g8n2bt" path="res://entity/common/CharacterAudioPlayer3D.tscn" id="13_7vo7v"]
-[ext_resource type="Texture2D" path="res://asset/vfx/flashlight_cookie.png" id="14_flash_cookie"]
+[ext_resource type="Texture2D" uid="uid://bsddtn5p7q6cj" path="res://asset/vfx/flashlight_cookie.png" id="14_flash_cookie"]
 [ext_resource type="PackedScene" path="res://ui/Hotbar.tscn" id="15_hotbar"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ys074"]
+radius = 0.2
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_f0s2u"]
 radius = 0.2
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_o6vus"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_mh3hk"]
 radius = 0.2
+height = 1.0
 
 [node name="Player" type="CharacterBody3D" unique_id=816921455]
-floor_snap_length = 0.4
-floor_constant_speed = true
 max_slides = 8
+floor_constant_speed = true
+floor_snap_length = 0.4
 script = ExtResource("1_rl0vi")
 max_air_jump = 0
 aim_ray_prefab = ExtResource("5_dqbuo")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1415249266]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1310824932]
+mesh = SubResource("CapsuleMesh_ys074")
+skeleton = NodePath("../StandingCollision")
+
+[node name="StandingCollision" type="CollisionShape3D" parent="." unique_id=1415249266]
 shape = SubResource("CapsuleShape3D_f0s2u")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1016326781]
-visible = false
-mesh = SubResource("CapsuleMesh_o6vus")
+[node name="CrouchingCollision" type="CollisionShape3D" parent="." unique_id=591863271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("CapsuleShape3D_mh3hk")
 
 [node name="WallRaycast" type="RayCast3D" parent="." unique_id=301708273]
 target_position = Vector3(0, 0, -1)
@@ -80,7 +88,6 @@ texture = ExtResource("5_nkt42")
 
 [node name="DebugLabel" type="Label" parent="Neck/ShakeableCamera" unique_id=1321077725]
 visible = false
-mouse_filter = 2
 offset_left = 8.0
 offset_top = 8.0
 offset_right = 520.0
@@ -100,32 +107,32 @@ visible = false
 [node name="VectorSMG" parent="Neck/ShakeableCamera/GunContainer" unique_id=1237007862 instance=ExtResource("5_gioix")]
 visible = false
 
-[node name="HeldItemPivot" type="Node3D" parent="Neck/ShakeableCamera"]
-position = Vector3(0.22, -0.22, -0.55)
+[node name="HeldItemPivot" type="Node3D" parent="Neck/ShakeableCamera" unique_id=233588970]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.22, -0.55)
 
 [node name="AimRay" parent="Neck/ShakeableCamera" unique_id=2065241242 instance=ExtResource("5_dqbuo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.000178993, -0.462722)
 
 [node name="Flashlight" type="SpotLight3D" parent="Neck/ShakeableCamera" unique_id=2139348496]
-position = Vector3(0, -0.05, -0.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.4)
 light_color = Color(0.94, 0.91, 0.82, 1)
 light_energy = 1.25
-light_size = 0.12
 light_projector = ExtResource("14_flash_cookie")
+light_size = 0.12
 shadow_enabled = true
 shadow_opacity = 0.65
 spot_range = 14.0
 spot_angle = 62.0
 spot_angle_attenuation = 0.3
 
-[node name="PlayerGlow" type="OmniLight3D" parent="."]
-position = Vector3(0, 0.55, 0)
+[node name="PlayerGlow" type="OmniLight3D" parent="." unique_id=562905684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
 light_color = Color(0.72, 0.78, 0.9, 1)
 light_energy = 0.18
-omni_range = 2.5
-omni_attenuation = 1.6
 shadow_enabled = true
 shadow_opacity = 0.35
+omni_range = 2.5
+omni_attenuation = 1.6
 
 [node name="DashDuration" type="Timer" parent="." unique_id=1407710525]
 editor_description = "How long the dash action last"
@@ -143,7 +150,7 @@ texture_albedo = ExtResource("3_tgexf")
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1858978385]
 process_mode = 3
 
-[node name="Hotbar" parent="CanvasLayer" instance=ExtResource("15_hotbar")]
+[node name="Hotbar" parent="CanvasLayer" unique_id=1738107589 instance=ExtResource("15_hotbar")]
 
 [node name="PauseUI" parent="CanvasLayer" unique_id=1341651505 instance=ExtResource("5_srijb")]
 visible = false

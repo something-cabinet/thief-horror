@@ -14,6 +14,8 @@ class_name Player
 @onready var neck: Node3D = $Neck
 @onready var state_chart: StateChart = $StateChart
 @onready var wall_raycast: RayCast3D = $WallRaycast
+@onready var standing_collision: CollisionShape3D = $StandingCollision
+@onready var crouching_collision: CollisionShape3D = $CrouchingCollision
 @onready var audio_player: CharacterAudioPlayer3D = $CharacterAudioPlayer3D
 
 @onready var gun_container = $Neck/ShakeableCamera/GunContainer
@@ -70,9 +72,11 @@ var vel_horizontal = Vector2(0, 0)
 var vel_vertical = 0
 var is_dashing = false
 var is_sprinting = false
-var is_crouching:
+var is_crouching := false:
 	set(value):
 		is_crouching = value
+		if is_node_ready():
+			_apply_crouch_collision()
 var raw_input_dir = Vector2(0, 0)
 var input_dir = Vector2(0, 0)
 var bonus_speed = 0
@@ -105,6 +109,9 @@ var dialogue_active := false
 var preview_mode := false
 
 func _ready():
+	# Editor-only placeholder capsule; hide it in-game.
+	$MeshInstance3D.visible = false
+	_apply_crouch_collision()
 	GameManager.player = self
 	player_camera.set_fov(GameManager.camera_fov)
 	player_camera.rotation_degrees.x = initial_camera_pitch_degrees
@@ -708,7 +715,8 @@ func jump(multiplier = 1.0):
 	jumped = true
 	state_chart.send_event("jump")
 	is_dashing = false
-	is_crouching = false
+	if _can_stand():
+		is_crouching = false
 
 func check_primary_attack():
 	if Input.is_action_pressed("primary_attack"):
@@ -821,12 +829,26 @@ func _on_grounded_state_input(event: InputEvent):
 
 func _on_grounded_state_physics_processing(_delta: float):
 	if dialogue_active:
-		is_crouching = false
+		if _can_stand():
+			is_crouching = false
 		return
 	if Input.is_action_pressed("crouch"):
 		is_crouching = true
-	else:
+	elif is_crouching and _can_stand():
 		is_crouching = false
+
+func _apply_crouch_collision() -> void:
+	standing_collision.disabled = is_crouching
+	crouching_collision.disabled = not is_crouching
+
+# True when the standing capsule fits at the current position (no low ceiling overhead).
+func _can_stand() -> bool:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = standing_collision.shape
+	query.transform = standing_collision.global_transform
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 func _on_airborne_state_input(event: InputEvent):
 	if dialogue_active:
@@ -983,7 +1005,8 @@ func set_preview_mode(enabled: bool) -> void:
 func _on_dialogue_started(_resource: DialogueResource) -> void:
 	dialogue_active = true
 	is_dashing = false
-	is_crouching = false
+	if _can_stand():
+		is_crouching = false
 	hotbar.hide()
 	_set_focused_interactable(null)
 
@@ -1002,7 +1025,7 @@ func snap_to_floor(max_distance: float = 100.0) -> void:
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return
-	var capsule := $CollisionShape3D.shape as CapsuleShape3D
+	var capsule := standing_collision.shape as CapsuleShape3D
 	var half_height := capsule.height * 0.5 if capsule != null else 1.0
 	global_position.y = result.position.y + half_height + 0.01
 
