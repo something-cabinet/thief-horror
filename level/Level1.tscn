@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://entity/npc/GrandmaNpc.tscn" id="16_grandma_npc"]
 [ext_resource type="Resource" path="res://dialogue/grandma_greetings.dialogue" id="17_grandma_greetings"]
 [ext_resource type="AnimationLibrary" path="res://asset/animation/humanoid/mesh2motion_human_base.glb" id="18_humanoid_animations"]
+[ext_resource type="PackedScene" path="res://entity/npc/ChildGhost.tscn" id="19_child_ghost"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -135,6 +136,10 @@ greeting_dialogue = ExtResource("17_grandma_greetings")
 dialogue_title = "edith"
 seated = true
 random_seed_offset = 29
+
+[node name="ChildGhost" parent="." instance=ExtResource("19_child_ghost")]
+position = Vector3(-50.8, -0.187, -122.5)
+rotation_degrees = Vector3(0, 145, 0)
 
 [node name="Rain" parent="." unique_id=747269824 instance=ExtResource("4_rain")]
 
