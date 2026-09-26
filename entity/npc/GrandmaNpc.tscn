@@ -1,0 +1,34 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://entity/npc/grandma_npc.gd" id="1_script"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_grandma"]
+radius = 0.3
+height = 1.5
+
+[node name="GrandmaNpc" type="CharacterBody3D"]
+floor_snap_length = 0.4
+floor_constant_speed = true
+max_slides = 8
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.75, 0)
+shape = SubResource("CapsuleShape3D_grandma")
+
+[node name="ModelAnchor" type="Node3D" parent="."]
+rotation_degrees = Vector3(0, 180, 0)
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.35
+target_desired_distance = 1.5
+radius = 0.3
+height = 1.5
+neighbor_distance = 3.0
+max_neighbors = 8
+time_horizon_agents = 1.0
+time_horizon_obstacles = 0.5
+max_speed = 0.9
+avoidance_enabled = true
+simplify_path = true
+simplify_epsilon = 0.15

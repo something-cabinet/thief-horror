@@ -45,20 +45,16 @@ const RECOIL_COEFFICIENT = 10
 const BULLET_SPAWN_POS_VARIATION = 10
 const HITSCAN_COLLISION_MASK = 3
 const HITSCAN_SURFACE_OFFSET = 0.01
-const MIN_STEP_HEIGHT = 0.05
-const STEP_TEST_MARGIN = 0.002
-const STEP_CLEARANCE = 0.005
-const STEP_SEAM_TOLERANCE = 0.02
-const STEP_PROBE_INCREMENT = 0.05
-const STEP_LANDING_MIN_UP_DOT = 0.5
 const STUCK_LOG_INTERVAL_MSEC = 500
 const STUCK_MIN_REQUEST_DISTANCE = 0.005
 const STUCK_PROGRESS_RATIO = 0.15
+const BLOCKED_JUMP_MOTION_EPSILON = 0.001
 const AIRBORNE_WEDGE_RECOVERY_FRAMES = 6
 const AIRBORNE_WEDGE_MOTION_EPSILON = 0.001
 const AIRBORNE_WEDGE_MIN_HEIGHT = 0.05
 const INVENTORY_SIZE := 5
 const INTERACTION_DISTANCE := 3.2
+const INTERACTION_COLLISION_MASK := 1 | 8 # World/interactables and dropped items.
 const THROW_SPEED := 7.0
 const THROW_SPAWN_DISTANCE := 0.8
 const OUTLINE_VISIBILITY_MASK := 1 << 19
@@ -90,8 +86,6 @@ var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
 var shot_assets_ready := false
 var attack_input_armed := false
-# True while a dialogue balloon is open; blocks movement, look, attacks and item use.
-var input_locked := false
 var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
@@ -107,6 +101,8 @@ var outline_rect: TextureRect
 var jump_recovery_position := Vector3.ZERO
 var jump_recovery_valid := false
 var airborne_wedge_frames := 0
+var dialogue_active := false
+var preview_mode := false
 
 func _ready():
 	GameManager.player = self
@@ -134,32 +130,30 @@ func _ready():
 		"mass": 1.0,
 	}
 	hotbar.update_slots(inventory, selected_item_slot)
+	var dialogue_manager: Node = Engine.get_singleton("DialogueManager")
+	dialogue_manager.dialogue_started.connect(_on_dialogue_started)
+	dialogue_manager.dialogue_ended.connect(_on_dialogue_ended)
 	_refresh_held_item()
 	_setup_interaction_outline_overlay()
-	DialogueManager.dialogue_started.connect(_on_dialogue_started)
-	DialogueManager.dialogue_ended.connect(_on_dialogue_ended)
 	call_deferred("prewarm_shot_assets")
 
-func _on_dialogue_started(_resource: DialogueResource) -> void:
-	input_locked = true
-	is_dashing = false
-	is_crouching = false
-
-func _on_dialogue_ended(_resource: DialogueResource) -> void:
-	input_locked = false
-
 func _input(event):
+	if dialogue_active:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F3 or event.physical_keycode == KEY_F3:
 			debug_label.visible = not debug_label.visible
+			get_tree().call_group(
+				&"navigation_debuggable",
+				&"set_navigation_debug_visible",
+				debug_label.visible
+			)
 			get_viewport().set_input_as_handled()
 			return
 		if event.keycode == KEY_F4 or event.physical_keycode == KEY_F4:
 			_probe_surface_coordinate()
 			get_viewport().set_input_as_handled()
 			return
-	if input_locked:
-		return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
 	if event.is_action_pressed("interact"):
@@ -196,7 +190,10 @@ func _process(delta):
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
 	_update_interaction_target()
 	# Disarming also stops the click that closes the last dialogue line from firing.
-	if input_locked or not _selected_item_is_gun():
+	if dialogue_active:
+		attack_input_armed = false
+		return
+	if not _selected_item_is_gun():
 		attack_input_armed = false
 		return
 	if not attack_input_armed:
@@ -271,22 +268,28 @@ func _update_interaction_target() -> void:
 		return
 	var ray_start := player_camera.camera.global_position
 	var ray_end := ray_start - player_camera.camera.global_basis.z * INTERACTION_DISTANCE
-	var query := PhysicsRayQueryParameters3D.create(ray_start, ray_end, 9, [get_rid()])
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
-	var candidate: Node3D
-	if not result.is_empty():
-		var collider := result.collider as Node3D
-		if collider != null and collider.is_in_group("interactable"):
-			if (
-				not collider.has_method("can_interact_from")
-				or bool(collider.call("can_interact_from", ray_start))
-			):
-				candidate = collider
+	var candidate := _find_visible_interactable(ray_start, ray_end)
 	_set_focused_interactable(candidate)
 	if not dev_probe_message.is_empty() and Time.get_ticks_msec() >= dev_probe_message_until_msec:
 		dev_probe_message = ""
 	# Refresh every frame so prompts pick up keybinds changed in the settings menu.
 	_refresh_interaction_prompt()
+
+
+func _find_visible_interactable(ray_start: Vector3, ray_end: Vector3) -> Node3D:
+	# The first physics hit is the visibility test. A wall, vehicle body, or any
+	# other collider in front of an interactable blocks it for every item type.
+	var query := PhysicsRayQueryParameters3D.create(
+		ray_start,
+		ray_end,
+		INTERACTION_COLLISION_MASK,
+		[get_rid()]
+	)
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return null
+	var collider := result.collider as Node3D
+	return collider if collider != null and collider.is_in_group("interactable") else null
 
 
 func _set_focused_interactable(candidate: Node3D) -> void:
@@ -485,13 +488,14 @@ func _calculate_model_bounds(root: Node3D) -> AABB:
 	return result
 
 func _physics_process(delta):
-	if is_dashing:
+	if dialogue_active:
+		raw_input_dir = Vector2.ZERO
+		input_dir = Vector2.ZERO
+		is_dashing = false
+	elif is_dashing:
 		if raw_input_dir == Vector2.ZERO:
 			raw_input_dir = Vector2(0, -1)
 			input_dir = raw_input_dir.rotated(-rotation.y)
-	elif input_locked:
-		raw_input_dir = Vector2.ZERO
-		input_dir = Vector2.ZERO
 	else:
 		raw_input_dir = Input.get_vector("left", "right", "up", "down")
 		input_dir = raw_input_dir.rotated(-rotation.y)
@@ -515,7 +519,7 @@ func _physics_process(delta):
 	else:
 		state_chart.send_event("airborne")
 
-	is_sprinting = not input_locked and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
+	is_sprinting = not dialogue_active and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
 	var max_speed = MAX_SPEED * SPRINT_SPEED_MODIFIER if is_sprinting else MAX_SPEED
 
 	var current_speed = vel_horizontal.length()
@@ -545,11 +549,7 @@ func _physics_process(delta):
 	var step_handled := _try_step_up(requested_horizontal_motion)
 	if not step_handled:
 		move_and_slide()
-		# CharacterBody3D clips velocity against floors, ceilings, and walls.
-		# Keep the custom vertical state in sync so a ceiling hit cannot leave the
-		# player applying the old fall speed forever while physically stationary.
-		if not is_on_floor():
-			vel_vertical = velocity.y
+		_sync_vertical_state_after_move(movement_start.y)
 	_recover_from_airborne_wedge(movement_start)
 
 	if debug_label.visible:
@@ -562,107 +562,44 @@ func _physics_process(delta):
 	camera_control(delta)
 
 
-func _try_step_up(horizontal_motion: Vector3) -> bool:
-	if not is_on_floor() or jumped or velocity.y > 0.0:
-		step_debug_reason = "not grounded"
-		return false
-
-	if horizontal_motion.length_squared() < 0.000001:
-		step_debug_reason = "no horizontal motion"
-		return false
-
-	var start_transform := global_transform
-	var obstacle_collision := KinematicCollision3D.new()
-	if not test_move(start_transform, horizontal_motion, obstacle_collision):
-		step_debug_reason = "no obstacle"
-		return false
-	if obstacle_collision.get_collision_count() == 0:
-		step_debug_reason = "obstacle without contact"
-		return false
-	var obstacle_normal := obstacle_collision.get_normal()
-	var obstacle_is_walkable := obstacle_normal.dot(Vector3.UP) >= cos(floor_max_angle)
-
-	# Test the complete player shape, not a ray or a map-specific ramp. Try the
-	# maximum legal rise first, then smaller lifts for low door headers/seams.
-	var maximum_lift := max_step_height + STEP_CLEARANCE
-	var lift_distances: Array[float] = [maximum_lift, STEP_SEAM_TOLERANCE + STEP_CLEARANCE]
-	var probe_height := MIN_STEP_HEIGHT
-	while probe_height < max_step_height - STEP_TEST_MARGIN:
-		lift_distances.append(probe_height + STEP_CLEARANCE)
-		probe_height += STEP_PROBE_INCREMENT
-
-	var last_rejection := "no valid landing"
-	for lift_distance: float in lift_distances:
-		var raised_transform := start_transform
-		var up_motion := Vector3.UP * lift_distance
-		if test_move(start_transform, up_motion):
-			last_rejection = "blocked headroom at %.3f" % lift_distance
-			continue
-		raised_transform.origin += up_motion
-
-		var raised_forward_transform := raised_transform
-		var forward_collision := KinematicCollision3D.new()
-		if test_move(raised_transform, horizontal_motion, forward_collision):
-			last_rejection = "raised path blocked at %.3f" % lift_distance
-			# If the body cannot move forward at the maximum legal rise, the
-			# obstacle is a wall/tall object unless the contact is an overhead
-			# surface. Smaller probes can pass below a low stairwell ceiling.
-			var forward_normal := forward_collision.get_normal(0)
-			if (
-				is_equal_approx(lift_distance, maximum_lift)
-				and not obstacle_is_walkable
-				and forward_normal.y >= -STEP_TEST_MARGIN
-			):
-				break
-			continue
-		raised_forward_transform.origin += horizontal_motion
-
-		var down_motion := Vector3.DOWN * (lift_distance + floor_snap_length)
-		var down_collision := KinematicCollision3D.new()
-		if not test_move(raised_forward_transform, down_motion, down_collision):
-			last_rejection = "no landing at %.3f" % lift_distance
-			continue
-		if down_collision.get_collision_count() == 0:
-			last_rejection = "landing without contact"
-			continue
-
-		var landing_normal := down_collision.get_normal(0)
-		# The capsule's rounded foot initially meets a stair nose diagonally.
-		# A full-height wall remains blocked during the raised forward sweep.
-		if landing_normal.dot(Vector3.UP) < STEP_LANDING_MIN_UP_DOT:
-			last_rejection = "landing not walkable normal=%s" % landing_normal
-			continue
-
-		var landing_position := raised_forward_transform.origin + down_collision.get_travel()
-		var step_height := landing_position.y - start_transform.origin.y
-		var crosses_floor_seam := (
-			obstacle_is_walkable
-			and absf(step_height) <= STEP_SEAM_TOLERANCE
-		)
-		if (
-			(not crosses_floor_seam and step_height < MIN_STEP_HEIGHT)
-			or step_height > max_step_height + STEP_TEST_MARGIN
-		):
-			last_rejection = "landing height %.3f outside range" % step_height
-			continue
-
-		global_position = landing_position
+func _sync_vertical_state_after_move(start_y: float) -> void:
+	# Tight imported doorways can report only their floor contact while an
+	# upward jump is physically blocked. Do not keep reapplying that jump forever.
+	var blocked_upward_motion := (
+		is_on_floor()
+		and vel_vertical > 0.0
+		and global_position.y <= start_y + BLOCKED_JUMP_MOTION_EPSILON
+	)
+	if blocked_upward_motion:
 		vel_vertical = 0.0
 		velocity.y = 0.0
-		is_step_traversing = true
-		# Keep the view at its pre-step height; camera_control() eases it onto
-		# the new floor while the body is already safely supported.
-		if step_height >= MIN_STEP_HEIGHT:
-			neck.position.y -= step_height
-		step_debug_reason = "%s height=%.3f lift=%.3f" % [
-			"crossed floor seam" if crosses_floor_seam else "accepted",
-			step_height,
-			lift_distance,
-		]
-		return true
+		jumped = false
+		current_air_jump_count = 0
+		step_debug_reason = "blocked jump recovered"
+	elif is_on_ceiling():
+		vel_vertical = minf(vel_vertical, 0.0)
+	elif not is_on_floor():
+		vel_vertical = velocity.y
 
-	step_debug_reason = last_rejection
-	return false
+
+func _try_step_up(horizontal_motion: Vector3) -> bool:
+	if jumped:
+		step_debug_reason = "not grounded"
+		return false
+	var result := CharacterStepSolver.try_step_up(
+		self,
+		horizontal_motion,
+		max_step_height
+	)
+	step_debug_reason = result.reason
+	if not result.handled:
+		return false
+	vel_vertical = 0.0
+	is_step_traversing = true
+	# Keep the view at its pre-step height while the body is already supported.
+	if result.step_height >= CharacterStepSolver.MIN_STEP_HEIGHT:
+		neck.position.y -= result.step_height
+	return true
 
 
 func _log_stuck_movement(movement_start: Vector3, requested_motion: Vector3) -> void:
@@ -877,19 +814,22 @@ func _on_dash_duration_timeout() -> void:
 	is_dashing = false
 
 func _on_grounded_state_input(event: InputEvent):
-	if input_locked:
+	if dialogue_active:
 		return
 	if event.is_action_pressed("jump"):
 		jump()
 
 func _on_grounded_state_physics_processing(_delta: float):
-	if not input_locked and Input.is_action_pressed("crouch"):
+	if dialogue_active:
+		is_crouching = false
+		return
+	if Input.is_action_pressed("crouch"):
 		is_crouching = true
 	else:
 		is_crouching = false
 
 func _on_airborne_state_input(event: InputEvent):
-	if input_locked:
+	if dialogue_active:
 		return
 	if event.is_action_pressed("jump"):
 		if can_coyote_jump and not jumped:
@@ -1022,16 +962,35 @@ func prewarm_shot_assets() -> void:
 	shot_assets_ready = true
 
 func set_preview_mode(enabled: bool) -> void:
+	preview_mode = enabled
 	gun_container.visible = false
 	aim_reticle.visible = not enabled
 	hitmarker.visible = not enabled
-	hotbar.visible = not enabled
+	hotbar.visible = not enabled and not dialogue_active
 	debug_label.visible = false
+	get_tree().call_group(
+		&"navigation_debuggable",
+		&"set_navigation_debug_visible",
+		false
+	)
 	pause_ui.visible = false
 	pause_ui.is_paused = false
 	pause_ui.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_ALWAYS
 	if not enabled:
 		_refresh_held_item()
+
+
+func _on_dialogue_started(_resource: DialogueResource) -> void:
+	dialogue_active = true
+	is_dashing = false
+	is_crouching = false
+	hotbar.hide()
+	_set_focused_interactable(null)
+
+
+func _on_dialogue_ended(_resource: DialogueResource) -> void:
+	dialogue_active = false
+	hotbar.visible = not preview_mode
 
 func snap_to_floor(max_distance: float = 100.0) -> void:
 	var query := PhysicsRayQueryParameters3D.create(

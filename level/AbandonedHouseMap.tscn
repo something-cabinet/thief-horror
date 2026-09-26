@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://civre4kjiiuht" path="res://asset/model/abandoned_house/source/Models/Abandoned_House.fbx" id="1_map"]
 [ext_resource type="Script" uid="uid://c6jecykd84r8o" path="res://level/abandoned_house_map.gd" id="2_script"]
+[ext_resource type="NavigationMesh" path="res://level/house_navigation_mesh.tres" id="3_navigation"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_ys074"]
 size = Vector3(1, 4.418091, 18.331116)
@@ -13,6 +14,15 @@ size = Vector3(1, 4.418091, 43.73128)
 script = ExtResource("2_script")
 
 [node name="Model" parent="." unique_id=1525729581 instance=ExtResource("1_map")]
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = ExtResource("3_navigation")
+use_edge_connections = false
+
+[node name="FrontDoorNavigationLink" type="NavigationLink3D" parent="."]
+start_position = Vector3(-28.48, -0.1, -117.5)
+end_position = Vector3(-28.48, -0.1, -118.4)
+enter_cost = 0.1
 
 [node name="InvisibleWall" type="StaticBody3D" parent="." unique_id=1983579701]
 

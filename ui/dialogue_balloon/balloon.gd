@@ -15,10 +15,10 @@ extends CanvasLayer
 @export var will_block_other_input: bool = true
 
 ## The action to use for advancing the dialogue
-@export var next_action: StringName = &"ui_accept"
+@export var next_action: StringName = &"interact"
 
 ## The action to use to skip typing the dialogue
-@export var skip_action: StringName = &"ui_cancel"
+@export var skip_action: StringName = &"interact"
 
 ## A sound player for voice lines (if they exist).
 @onready var audio_stream_player: AudioStreamPlayer = %AudioStreamPlayer
@@ -70,6 +70,11 @@ var mutation_cooldown: Timer = Timer.new()
 ## Indicator to show that player can progress dialogue.
 @onready var progress: Polygon2D = %Progress
 
+## Explains whether the next interaction advances or closes the dialogue.
+@onready var continue_hint: Label = %ContinueHint
+
+var is_closing := false
+
 
 func _ready() -> void:
 	balloon.hide()
@@ -91,7 +96,34 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if is_instance_valid(dialogue_line):
-		progress.visible = not dialogue_label.is_typing and dialogue_line.responses.size() == 0 and not dialogue_line.has_tag("voice")
+		var can_continue := (
+			not dialogue_label.is_typing
+			and dialogue_line.responses.size() == 0
+			and not dialogue_line.has_tag("voice")
+		)
+		progress.visible = can_continue
+		continue_hint.visible = can_continue
+		continue_hint.text = "E to close" if _is_final_line() else "E to continue"
+
+
+func _input(event: InputEvent) -> void:
+	if not is_instance_valid(dialogue_line) or is_closing:
+		return
+	if event is InputEventKey and event.echo:
+		return
+	if event.is_action_pressed("pause_menu"):
+		get_viewport().set_input_as_handled()
+		_close_dialogue()
+		return
+	if not event.is_action_pressed(next_action):
+		return
+	if dialogue_label.is_typing:
+		get_viewport().set_input_as_handled()
+		dialogue_label.skip_typing()
+		return
+	if is_waiting_for_input and dialogue_line.responses.is_empty():
+		get_viewport().set_input_as_handled()
+		next(dialogue_line.next_id)
 
 
 func _unhandled_input(_event: InputEvent) -> void:
@@ -127,6 +159,7 @@ func apply_dialogue_line() -> void:
 	mutation_cooldown.stop()
 
 	progress.hide()
+	continue_hint.hide()
 	is_waiting_for_input = false
 	balloon.focus_mode = Control.FOCUS_ALL
 	balloon.grab_focus()
@@ -148,6 +181,8 @@ func apply_dialogue_line() -> void:
 	if not dialogue_line.text.is_empty():
 		dialogue_label.type_out()
 		await dialogue_label.finished_typing
+		if is_closing:
+			return
 
 	# Wait for next line
 	if dialogue_line.has_tag("voice"):
@@ -173,6 +208,41 @@ func next(next_id: String) -> void:
 	dialogue_line = await dialogue_resource.get_next_dialogue_line(next_id, temporary_game_states)
 
 
+func _is_final_line() -> bool:
+	if not is_instance_valid(dialogue_line):
+		return false
+	var next_stack := dialogue_line.next_id.split("|")
+	var next_key := _local_dialogue_key(next_stack[0])
+	var visited: Dictionary[String, bool] = {}
+	while not next_key.is_empty() and not visited.has(next_key):
+		if next_key == "end!":
+			return true
+		if next_key == "end":
+			return next_stack.size() == 1
+		visited[next_key] = true
+		if not dialogue_resource.lines.has(next_key):
+			return false
+		var next_data: Dictionary = dialogue_resource.lines[next_key]
+		if String(next_data.get("type", "")) not in ["", "cue", "goto", "mutation"]:
+			return false
+		next_key = _local_dialogue_key(String(next_data.get("next_id", "")))
+	return next_key.is_empty()
+
+
+func _local_dialogue_key(full_id: String) -> String:
+	var id_parts := full_id.split("@")
+	return id_parts[id_parts.size() - 1]
+
+
+func _close_dialogue() -> void:
+	is_closing = true
+	is_waiting_for_input = false
+	audio_stream_player.stop()
+	balloon.hide()
+	Engine.get_singleton("DialogueManager").dialogue_ended.emit.call_deferred(dialogue_resource)
+	dialogue_line = null
+
+
 #region Signals
 
 
@@ -187,28 +257,6 @@ func _on_mutated(mutation: Dictionary) -> void:
 		is_waiting_for_input = false
 		will_hide_balloon = true
 		mutation_cooldown.start(0.1)
-
-
-func _on_balloon_gui_input(event: InputEvent) -> void:
-	# See if we need to skip typing of the dialogue
-	if dialogue_label.is_typing:
-		var mouse_was_clicked: bool = event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.is_pressed()
-		var skip_button_was_pressed: bool = event.is_action_pressed(skip_action)
-		if mouse_was_clicked or skip_button_was_pressed:
-			get_viewport().set_input_as_handled()
-			dialogue_label.skip_typing()
-			return
-
-	if not is_waiting_for_input: return
-	if dialogue_line.responses.size() > 0: return
-
-	# When there are no response options the balloon itself is the clickable thing
-	get_viewport().set_input_as_handled()
-
-	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-		next(dialogue_line.next_id)
-	elif event.is_action_pressed(next_action) and get_viewport().gui_get_focus_owner() == balloon:
-		next(dialogue_line.next_id)
 
 
 func _on_responses_menu_response_selected(response: DialogueResponse) -> void:

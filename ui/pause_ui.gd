@@ -13,6 +13,8 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_menu"):
+		if is_instance_valid(GameManager.player) and GameManager.player.dialogue_active:
+			return
 		SoundManager.play_button_hover_sfx()
 		if is_in_submenu:
 			setting_ui.close_menu()

@@ -2,6 +2,38 @@
 
 Requires Godot 4.7.
 
+## Refreshing Godot after pulling changes
+
+Git updates the project files but does not rebuild Godot's import cache. After
+pulling new changes, refresh the project without opening the editor:
+
+```bash
+git pull --ff-only && godot --headless --editor --quit --path .
+```
+
+## Humanoid animations
+
+Characters use Godot's `SkeletonProfileHumanoid` retargeting. The shared
+Mesh2Motion library contains 87 reusable animations; characters do not contain
+hand-authored copies of those clips.
+
+To add another Mixamo-rigged character, import it once, configure its humanoid
+bone map, then reimport:
+
+```bash
+godot --headless --editor --quit --path .
+godot --headless --path . --script res://tools/configure_humanoid_imports.gd -- res://path/to/character.fbx
+godot --headless --editor --quit --path .
+```
+
+Commit the generated `.import` file so teammates receive the same mapping.
+
+Validate every configured character with:
+
+```bash
+godot --headless --path . --script res://tools/validate_humanoid_pipeline.gd
+```
+
 ## Debugging player movement
 
 Press **F3** while playing to toggle the debug panel in the top-left corner.
