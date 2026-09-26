@@ -24,7 +24,7 @@ config/icon="res://icon.svg"
 EnumAutoload="*res://singleton/enum_autoload.gd"
 SoundManager="*uid://bk0j3bt5no2jk"
 GameManager="*res://singleton/GameManager.tscn"
-DialogueManager="*uid://c3rodes2l3gxb"
+DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 
 [dialogue_manager]
 
@@ -145,7 +145,7 @@ dash={
 
 [internationalization]
 
-locale/translations_pot_files=PackedStringArray("res://dialogue/demo.dialogue", "res://dialogue/intro.dialogue")
+locale/translations_pot_files=PackedStringArray("res://dialogue/demo.dialogue", "res://dialogue/intro.dialogue", "res://dialogue/grandma_greetings.dialogue")
 
 [layer_names]
 

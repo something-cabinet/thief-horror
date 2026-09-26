@@ -1,6 +1,8 @@
 extends Node3D
 
 const TELEVISION_SCREEN_SHADER := preload("res://material/television_screen.gdshader")
+const BLACKBOARD_PLAN_TEXTURE := preload("res://asset/texture/blackboard_robbery_plan.png")
+const BLACKBOARD_CHALK_SHADER := preload("res://material/blackboard_chalk_overlay.gdshader")
 
 const STRUCTURE_COLLISION_PREFIXES := [
 	"Casa",
@@ -105,6 +107,7 @@ func _ready() -> void:
 	_fix_invalid_imported_materials()
 	_fix_imported_carpet_materials()
 	_fix_imported_glass()
+	_setup_blackboard_plan()
 	_setup_front_door()
 	_setup_refrigerator_doors()
 	_setup_van_doors()
@@ -159,6 +162,166 @@ func _ready() -> void:
 	])
 
 
+func _setup_blackboard_plan() -> void:
+	var board := find_child("Pizarra", true, false) as MeshInstance3D
+	if board == null or board.mesh == null:
+		push_warning("Abandoned house blackboard mesh was not found")
+		return
+
+	# Use only the four vertices carrying the green "Pizarra" material. The
+	# mesh AABB also contains the wooden frame and legs and is not a writing area.
+	var surface_bounds := AABB()
+	var found_surface := false
+	for surface_index in board.mesh.get_surface_count():
+		var material := board.get_active_material(surface_index)
+		if material == null or material.resource_name != "Pizarra":
+			continue
+		var arrays := board.mesh.surface_get_arrays(surface_index)
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		if vertices.is_empty():
+			continue
+		surface_bounds = AABB(vertices[0], Vector3.ZERO)
+		for vertex in vertices:
+			surface_bounds = surface_bounds.expand(vertex)
+		found_surface = true
+		break
+	if not found_surface:
+		push_warning("Abandoned house blackboard writing surface was not found")
+		return
+
+	var surface_center := board.to_global(surface_bounds.get_center())
+	var front := -board.global_basis.x.normalized()
+	var right := -board.global_basis.y.normalized()
+	var up := board.global_basis.z.normalized()
+	var writing_basis := Basis(right, up, front).orthonormalized()
+	var surface_width := surface_bounds.size.y * board.global_basis.y.length()
+	var surface_height := surface_bounds.size.z * board.global_basis.z.length()
+	var left_edge := surface_center - right * surface_width * 0.5
+	var text_surface := front * 0.004
+	var horizontal_padding := 0.10
+	var available_width := surface_width - horizontal_padding * 2.0
+
+	var chalk_font := SystemFont.new()
+	chalk_font.font_names = PackedStringArray([
+		"Chalkduster",
+		"Chalkboard SE",
+		"Comic Sans MS",
+		"Comic Sans",
+	])
+
+	var heading_text := "REMEMBER, IDIOT"
+	var heading_font_size := 48
+	var heading_pixel_width := chalk_font.get_string_size(
+		heading_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1.0,
+		heading_font_size
+	).x
+	var heading_pixel_size := minf(0.00165, available_width / heading_pixel_width)
+	var heading := _make_blackboard_label(
+		heading_text,
+		chalk_font,
+		heading_font_size,
+		heading_pixel_size
+	)
+	add_child(heading)
+	var heading_world_width := heading_pixel_width * heading_pixel_size
+	heading.global_transform = Transform3D(
+		writing_basis,
+		surface_center - right * heading_world_width * 0.5
+			+ up * surface_height * 0.36 + text_surface
+	)
+
+	var plan_lines := [
+		"STUFFS — AROUND THE HOUSE?",
+		"CELLAR — KEEP SHUT",
+		"IF HE CALLS, DON’T ANSWER",
+	]
+	var body_font_size := 36
+	var maximum_line_width := 1.0
+	for line in plan_lines:
+		maximum_line_width = maxf(
+			maximum_line_width,
+			chalk_font.get_string_size(
+				line,
+				HORIZONTAL_ALIGNMENT_LEFT,
+				-1.0,
+				body_font_size
+			).x
+		)
+	var text_column_width := surface_width * 0.43
+	var body_pixel_size := minf(0.0019, text_column_width / maximum_line_width)
+	var line_step := surface_height * 0.16
+	for line_index in plan_lines.size():
+		var line := _make_blackboard_label(
+			plan_lines[line_index],
+			chalk_font,
+			body_font_size,
+			body_pixel_size
+		)
+		add_child(line)
+		line.global_transform = Transform3D(
+			writing_basis,
+			left_edge + right * horizontal_padding
+				+ up * (surface_height * 0.13 - line_step * line_index)
+				+ text_surface
+		)
+
+	var overlay_width := surface_width * 0.46
+	var overlay_height := (
+		overlay_width
+		* float(BLACKBOARD_PLAN_TEXTURE.get_height())
+		/ float(BLACKBOARD_PLAN_TEXTURE.get_width())
+	)
+	var overlay_material := ShaderMaterial.new()
+	overlay_material.shader = BLACKBOARD_CHALK_SHADER
+	overlay_material.set_shader_parameter("chalk_texture", BLACKBOARD_PLAN_TEXTURE)
+	overlay_material.set_shader_parameter(
+		"chalk_color",
+		Color(0.93, 0.91, 0.78, 0.78)
+	)
+	var overlay_quad := QuadMesh.new()
+	overlay_quad.size = Vector2(overlay_width, overlay_height)
+	overlay_quad.material = overlay_material
+	var overlay := MeshInstance3D.new()
+	overlay.name = "BlackboardRobberyDrawing"
+	overlay.mesh = overlay_quad
+	overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(overlay)
+	overlay.global_transform = Transform3D(
+		writing_basis,
+		surface_center + right * surface_width * 0.22
+			- up * surface_height * 0.10 + text_surface
+	)
+
+
+func _make_blackboard_label(
+	text: String,
+	font: Font,
+	font_size: int,
+	pixel_size: float
+) -> Label3D:
+	var label := Label3D.new()
+	label.text = text
+	label.font = font
+	label.font_size = font_size
+	label.pixel_size = pixel_size
+	label.modulate = Color(0.93, 0.91, 0.78, 0.92)
+	label.outline_size = 2
+	label.outline_modulate = Color(0.08, 0.12, 0.08, 0.55)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.width = font.get_string_size(
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1.0,
+		font_size
+	).x + 4.0
+	label.double_sided = false
+	label.no_depth_test = false
+	return label
+
+
 func _setup_front_door() -> void:
 	var door_mesh := find_child("Puerta", true, false) as MeshInstance3D
 	if door_mesh == null or door_mesh.mesh == null or door_mesh.get_parent().name != &"Casa":
@@ -194,14 +357,15 @@ func _setup_van_doors() -> void:
 			label = "van side door"
 		elif String(mesh.name).begins_with("Puerta_Tra"):
 			label = "van rear door"
-		var door_bounds := _world_bounds(mesh)
-		var body := _wrap_vertical_hinge(mesh, label, 95.0)
-		var normal_axis := (
-			Vector3.RIGHT if door_bounds.size.x <= door_bounds.size.z else Vector3.FORWARD
+		var open_angle := 72.0 if label == "van door" else 95.0
+		var door := _wrap_vertical_hinge(mesh, label, open_angle)
+		door.choose_direction_from_actor = false
+		door.open_direction = (
+			1.0
+			if door._open_center_for_direction(1.0).distance_squared_to(van_center)
+			>= door._open_center_for_direction(-1.0).distance_squared_to(van_center)
+			else -1.0
 		)
-		if (door_bounds.get_center() - van_center).dot(normal_axis) < 0.0:
-			normal_axis = -normal_axis
-		body.restrict_interaction_to_side(normal_axis)
 
 
 func _setup_cabinet_parts() -> void:

@@ -6,7 +6,7 @@ extends Node3D
 #   - Level1 player spawn position/yaw/pitch.
 #   - Collision setup on specific map meshes (trimesh vs. box, non-interactive props).
 #   - Interactables: expected counts, open/close animation, outlines, lamps, TVs,
-#     drawer start states, van doors only usable from outside, front door.
+#     drawer start states, van doors, front door.
 #   - Player movement: walks a physics-driven player through stairs, doorways and a
 #     synthetic step/obstacle course, checking step-up works, tall obstacles block,
 #     and the camera doesn't jerk upward.
@@ -44,6 +44,7 @@ func _ready() -> void:
 	player.set_physics_process(false)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	await _verify_interaction_line_of_sight()
 
 	_add_synthetic_course()
 	await get_tree().physics_frame
@@ -199,6 +200,8 @@ func _verify_front_door(map: Node) -> void:
 
 
 func _verify_interactables(map: Node) -> void:
+	var van_mesh := map.find_child("Ban", true, false) as MeshInstance3D
+	var van_center := van_mesh.global_transform * van_mesh.get_aabb().get_center()
 	var moving_count := 0
 	var light_count := 0
 	var television_count := 0
@@ -241,7 +244,14 @@ func _verify_interactables(map: Node) -> void:
 					cabinet_part_count += 1
 					cabinet_lid_count += 1
 				"window": window_count += 1
-				"van door", "van side door", "van rear door": van_door_count += 1
+				"van door", "van side door", "van rear door":
+					van_door_count += 1
+					var hinged := moving as HingedInteractable
+					if hinged.choose_direction_from_actor:
+						failures.append("%s can incorrectly swing inward" % moving.name)
+					var open_center := moving.to_global(moving.moving_collision.position)
+					if open_center.distance_squared_to(van_center) < closed_center.distance_squared_to(van_center):
+						failures.append("%s opens toward the van" % moving.name)
 				"washer lid", "dryer door": laundry_count += 1
 				"freezer door", "refrigerator door": refrigerator_count += 1
 		elif candidate is TelevisionInteractable:
@@ -275,7 +285,6 @@ func _verify_interactables(map: Node) -> void:
 		failures.append("expected 71 moving interactables, found %d" % moving_count)
 	_verify_imported_drawer_states(map)
 	_verify_explicit_cabinet_classification(map)
-	_verify_van_doors_are_exterior_only(map)
 	_verify_moving_interaction_reversal(map)
 	print("[INTERACTABLE_TEST] moving=%d lights=%d televisions=%d cabinets=%d lids=%d windows=%d van=%d laundry=%d refrigerator=%d" % [
 		moving_count,
@@ -339,33 +348,11 @@ func _verify_explicit_cabinet_classification(map: Node) -> void:
 		failures.append("p_041 shower rail is still interactive")
 
 
-func _verify_van_doors_are_exterior_only(map: Node) -> void:
-	for candidate: Node in get_tree().get_nodes_in_group("interactable"):
-		if not map.is_ancestor_of(candidate) or not candidate is MovingInteractable:
-			continue
-		var door := candidate as MovingInteractable
-		if not door.display_name.begins_with("van"):
-			continue
-		if door.interaction_normal_local.is_zero_approx() or door.moving_collision == null:
-			failures.append("%s has no exterior interaction side" % door.name)
-			continue
-		var normal := (
-			door.global_transform.basis * door.interaction_normal_local
-		).normalized()
-		var center := door.global_transform * door.moving_collision.position
-		if not door.can_interact_from(center + normal * 2.0):
-			failures.append("%s rejects its exterior side" % door.name)
-		if door.can_interact_from(center - normal * 2.0):
-			failures.append("%s accepts interaction through the van" % door.name)
-		door.set_open_immediate(true)
-		if not door.can_interact_from(center - normal * 2.0):
-			failures.append("%s cannot be selected from its visible reverse side while open" % door.name)
-		door.set_open_immediate(false)
-
-
 func _verify_television_screen(television: TelevisionInteractable) -> void:
 	if television.find_child("TelevisionScreen", true, false) != null:
 		failures.append("%s still uses overlay screen geometry" % television.name)
+
+
 	if television.screen_material == null:
 		failures.append("%s has no atlas screen material" % television.name)
 		return
@@ -383,6 +370,31 @@ func _verify_television_screen(television: TelevisionInteractable) -> void:
 	television.set_on_immediate(false)
 	if television.screen_light != null and television.screen_light.visible:
 		failures.append("%s screen light does not turn off" % television.name)
+
+
+func _verify_interaction_line_of_sight() -> void:
+	var target := _add_box(
+		"InteractionVisibilityTarget",
+		Vector3(200.0, 1.0, 204.0),
+		Vector3.ONE
+	)
+	target.add_to_group("interactable")
+	var blocker := _add_box(
+		"InteractionVisibilityBlocker",
+		Vector3(200.0, 1.0, 202.0),
+		Vector3.ONE
+	)
+	await get_tree().physics_frame
+	var ray_start := Vector3(200.0, 1.0, 200.0)
+	var ray_end := Vector3(200.0, 1.0, 206.0)
+	if player._find_visible_interactable(ray_start, ray_end) != null:
+		failures.append("interaction ray selects a target through an obstruction")
+	blocker.collision_layer = 0
+	await get_tree().physics_frame
+	if player._find_visible_interactable(ray_start, ray_end) != target:
+		failures.append("interaction ray rejects an unobstructed target")
+	target.queue_free()
+	blocker.queue_free()
 
 
 func _verify_airborne_wedge_recovery() -> void:
@@ -535,7 +547,7 @@ func _add_synthetic_course() -> void:
 	_add_box("DoorwayRight", Vector3(101.5, 1.5, 108.41), Vector3(3.0, 3.0, 0.2))
 
 
-func _add_box(body_name: String, body_position: Vector3, size: Vector3) -> void:
+func _add_box(body_name: String, body_position: Vector3, size: Vector3) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = body_name
 	body.collision_layer = 1
@@ -546,3 +558,4 @@ func _add_box(body_name: String, body_position: Vector3, size: Vector3) -> void:
 	body.position = body_position
 	body.add_child(collision)
 	add_child(body)
+	return body

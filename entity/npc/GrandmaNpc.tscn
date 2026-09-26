@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://entity/npc/grandma_npc.gd" id="1_script"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_grandma"]
+radius = 0.3
+height = 1.5
+
+[node name="GrandmaNpc" type="CharacterBody3D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.75, 0)
+shape = SubResource("CapsuleShape3D_grandma")
+
+[node name="ModelAnchor" type="Node3D" parent="."]
+rotation_degrees = Vector3(0, 180, 0)

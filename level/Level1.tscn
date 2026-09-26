@@ -15,6 +15,11 @@
 [ext_resource type="Texture2D" uid="uid://dchvdhkahylg6" path="res://asset/model/items/icons/cigs_carton.png" id="11_cigs_icon"]
 [ext_resource type="PackedScene" uid="uid://claak8pjepeu" path="res://asset/model/items/models/ps1_notebook.glb" id="12_notebook_model"]
 [ext_resource type="Texture2D" uid="uid://bqhyo2ru7ibl2" path="res://asset/model/items/icons/ps1_notebook.png" id="13_notebook_icon"]
+[ext_resource type="PackedScene" path="res://asset/model/characters/grandma/Grandma.fbx" id="14_grandma"]
+[ext_resource type="PackedScene" path="res://asset/model/characters/grandma/GrandmaPurple.fbx" id="15_grandma_purple"]
+[ext_resource type="PackedScene" path="res://entity/npc/GrandmaNpc.tscn" id="16_grandma_npc"]
+[ext_resource type="Resource" path="res://dialogue/grandma_greetings.dialogue" id="17_grandma_greetings"]
+[ext_resource type="AnimationLibrary" path="res://asset/animation/humanoid/mesh2motion_human_base.glb" id="18_humanoid_animations"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -108,6 +113,28 @@ transform = Transform3D(0.7592713, 0, -0.6507742, 0, 1, 0, 0.6507742, 0, 0.75927
 collision_layer = 4
 collision_mask = 3
 initial_camera_pitch_degrees = 1.3
+
+[node name="GrandmaBlue" parent="." instance=ExtResource("16_grandma_npc")]
+position = Vector3(-50.463, -1.168, -103.373)
+rotation_degrees = Vector3(0, -40.6, 0)
+display_name = "Mabel"
+model_scene = ExtResource("14_grandma")
+animation_library = ExtResource("18_humanoid_animations")
+greeting_dialogue = ExtResource("17_grandma_greetings")
+dialogue_title = "mabel"
+follow_target_path = NodePath("../Player")
+random_seed_offset = 31
+
+[node name="GrandmaPurple" parent="." instance=ExtResource("16_grandma_npc")]
+position = Vector3(-50.1, -0.55, -102.83)
+rotation_degrees = Vector3(0, 0, 0)
+display_name = "Edith"
+model_scene = ExtResource("15_grandma_purple")
+animation_library = ExtResource("18_humanoid_animations")
+greeting_dialogue = ExtResource("17_grandma_greetings")
+dialogue_title = "edith"
+seated = true
+random_seed_offset = 29
 
 [node name="Rain" parent="." unique_id=747269824 instance=ExtResource("4_rain")]
 

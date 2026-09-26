@@ -59,6 +59,7 @@ const AIRBORNE_WEDGE_MOTION_EPSILON = 0.001
 const AIRBORNE_WEDGE_MIN_HEIGHT = 0.05
 const INVENTORY_SIZE := 5
 const INTERACTION_DISTANCE := 3.2
+const INTERACTION_COLLISION_MASK := 1 | 8 # World/interactables and dropped items.
 const THROW_SPEED := 7.0
 const THROW_SPAWN_DISTANCE := 0.8
 const OUTLINE_VISIBILITY_MASK := 1 << 19
@@ -90,8 +91,6 @@ var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
 var shot_assets_ready := false
 var attack_input_armed := false
-# True while a dialogue balloon is open; blocks movement, look, attacks and item use.
-var input_locked := false
 var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
@@ -107,6 +106,8 @@ var outline_rect: TextureRect
 var jump_recovery_position := Vector3.ZERO
 var jump_recovery_valid := false
 var airborne_wedge_frames := 0
+var dialogue_active := false
+var preview_mode := false
 
 func _ready():
 	GameManager.player = self
@@ -134,21 +135,16 @@ func _ready():
 		"mass": 1.0,
 	}
 	hotbar.update_slots(inventory, selected_item_slot)
+	var dialogue_manager: Node = Engine.get_singleton("DialogueManager")
+	dialogue_manager.dialogue_started.connect(_on_dialogue_started)
+	dialogue_manager.dialogue_ended.connect(_on_dialogue_ended)
 	_refresh_held_item()
 	_setup_interaction_outline_overlay()
-	DialogueManager.dialogue_started.connect(_on_dialogue_started)
-	DialogueManager.dialogue_ended.connect(_on_dialogue_ended)
 	call_deferred("prewarm_shot_assets")
 
-func _on_dialogue_started(_resource: DialogueResource) -> void:
-	input_locked = true
-	is_dashing = false
-	is_crouching = false
-
-func _on_dialogue_ended(_resource: DialogueResource) -> void:
-	input_locked = false
-
 func _input(event):
+	if dialogue_active:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F3 or event.physical_keycode == KEY_F3:
 			debug_label.visible = not debug_label.visible
@@ -158,8 +154,6 @@ func _input(event):
 			_probe_surface_coordinate()
 			get_viewport().set_input_as_handled()
 			return
-	if input_locked:
-		return
 	if event is InputEventMouseMotion:
 		rotate_player(event)
 	if event.is_action_pressed("interact"):
@@ -196,7 +190,10 @@ func _process(delta):
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
 	_update_interaction_target()
 	# Disarming also stops the click that closes the last dialogue line from firing.
-	if input_locked or not _selected_item_is_gun():
+	if dialogue_active:
+		attack_input_armed = false
+		return
+	if not _selected_item_is_gun():
 		attack_input_armed = false
 		return
 	if not attack_input_armed:
@@ -271,23 +268,29 @@ func _update_interaction_target() -> void:
 		return
 	var ray_start := player_camera.camera.global_position
 	var ray_end := ray_start - player_camera.camera.global_basis.z * INTERACTION_DISTANCE
-	var query := PhysicsRayQueryParameters3D.create(ray_start, ray_end, 9, [get_rid()])
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
-	var candidate: Node3D
-	if not result.is_empty():
-		var collider := result.collider as Node3D
-		if collider != null and collider.is_in_group("interactable"):
-			if (
-				not collider.has_method("can_interact_from")
-				or bool(collider.call("can_interact_from", ray_start))
-			):
-				candidate = collider
+	var candidate := _find_visible_interactable(ray_start, ray_end)
 	_set_focused_interactable(candidate)
 	if Time.get_ticks_msec() < dev_probe_message_until_msec:
 		hotbar.set_prompt(dev_probe_message)
 	elif not dev_probe_message.is_empty():
 		dev_probe_message = ""
 		_refresh_interaction_prompt()
+
+
+func _find_visible_interactable(ray_start: Vector3, ray_end: Vector3) -> Node3D:
+	# The first physics hit is the visibility test. A wall, vehicle body, or any
+	# other collider in front of an interactable blocks it for every item type.
+	var query := PhysicsRayQueryParameters3D.create(
+		ray_start,
+		ray_end,
+		INTERACTION_COLLISION_MASK,
+		[get_rid()]
+	)
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return null
+	var collider := result.collider as Node3D
+	return collider if collider != null and collider.is_in_group("interactable") else null
 
 
 func _set_focused_interactable(candidate: Node3D) -> void:
@@ -486,13 +489,14 @@ func _calculate_model_bounds(root: Node3D) -> AABB:
 	return result
 
 func _physics_process(delta):
-	if is_dashing:
+	if dialogue_active:
+		raw_input_dir = Vector2.ZERO
+		input_dir = Vector2.ZERO
+		is_dashing = false
+	elif is_dashing:
 		if raw_input_dir == Vector2.ZERO:
 			raw_input_dir = Vector2(0, -1)
 			input_dir = raw_input_dir.rotated(-rotation.y)
-	elif input_locked:
-		raw_input_dir = Vector2.ZERO
-		input_dir = Vector2.ZERO
 	else:
 		raw_input_dir = Input.get_vector("left", "right", "up", "down")
 		input_dir = raw_input_dir.rotated(-rotation.y)
@@ -516,7 +520,7 @@ func _physics_process(delta):
 	else:
 		state_chart.send_event("airborne")
 
-	is_sprinting = not input_locked and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
+	is_sprinting = not dialogue_active and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
 	var max_speed = MAX_SPEED * SPRINT_SPEED_MODIFIER if is_sprinting else MAX_SPEED
 
 	var current_speed = vel_horizontal.length()
@@ -878,19 +882,22 @@ func _on_dash_duration_timeout() -> void:
 	is_dashing = false
 
 func _on_grounded_state_input(event: InputEvent):
-	if input_locked:
+	if dialogue_active:
 		return
 	if event.is_action_pressed("jump"):
 		jump()
 
 func _on_grounded_state_physics_processing(_delta: float):
-	if not input_locked and Input.is_action_pressed("crouch"):
+	if dialogue_active:
+		is_crouching = false
+		return
+	if Input.is_action_pressed("crouch"):
 		is_crouching = true
 	else:
 		is_crouching = false
 
 func _on_airborne_state_input(event: InputEvent):
-	if input_locked:
+	if dialogue_active:
 		return
 	if event.is_action_pressed("jump"):
 		if can_coyote_jump and not jumped:
@@ -1023,16 +1030,30 @@ func prewarm_shot_assets() -> void:
 	shot_assets_ready = true
 
 func set_preview_mode(enabled: bool) -> void:
+	preview_mode = enabled
 	gun_container.visible = false
 	aim_reticle.visible = not enabled
 	hitmarker.visible = not enabled
-	hotbar.visible = not enabled
+	hotbar.visible = not enabled and not dialogue_active
 	debug_label.visible = false
 	pause_ui.visible = false
 	pause_ui.is_paused = false
 	pause_ui.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_ALWAYS
 	if not enabled:
 		_refresh_held_item()
+
+
+func _on_dialogue_started(_resource: DialogueResource) -> void:
+	dialogue_active = true
+	is_dashing = false
+	is_crouching = false
+	hotbar.hide()
+	_set_focused_interactable(null)
+
+
+func _on_dialogue_ended(_resource: DialogueResource) -> void:
+	dialogue_active = false
+	hotbar.visible = not preview_mode
 
 func snap_to_floor(max_distance: float = 100.0) -> void:
 	var query := PhysicsRayQueryParameters3D.create(

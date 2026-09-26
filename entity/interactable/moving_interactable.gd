@@ -12,7 +12,6 @@ var blocked_message_until_msec := 0
 var moving_collision: CollisionShape3D
 var closed_transform: Transform3D
 var closing_safety_samples := 1
-var interaction_normal_local := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -70,27 +69,6 @@ func get_interaction_prompt() -> String:
 
 func set_highlighted(highlighted: bool) -> void:
 	InteractableVisual.set_highlighted(self, highlighted)
-
-
-func restrict_interaction_to_side(world_normal: Vector3) -> void:
-	interaction_normal_local = (
-		global_transform.basis.inverse() * world_normal.normalized()
-	).normalized()
-
-
-func can_interact_from(world_position: Vector3) -> bool:
-	if interaction_normal_local.is_zero_approx() or moving_collision == null:
-		return true
-	# The side restriction only prevents selecting a closed panel through the
-	# van. Once the door has moved, either visible face must remain usable so it
-	# can always be closed again.
-	if is_moving or movement_progress > 0.05:
-		return true
-	var interaction_normal_world := (
-		global_transform.basis * interaction_normal_local
-	).normalized()
-	var collision_center := global_transform * moving_collision.position
-	return (world_position - collision_center).dot(interaction_normal_world) > 0.05
 
 
 func set_open_immediate(open: bool, direction := 0.0) -> void:

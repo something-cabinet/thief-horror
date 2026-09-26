@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bgjylyr4ujl27"]
 
-[ext_resource type="Script" uid="uid://d6tholv6ke3s" path="res://ui/dialogue_balloon/balloon.gd" id="1_36de5"]
+[ext_resource type="Script" path="res://ui/dialogue_balloon/balloon.gd" id="1_36de5"]
 [ext_resource type="PackedScene" uid="uid://ckvgyvclnwggo" path="res://addons/dialogue_manager/nodes/dialogue_label/dialogue_label.tscn" id="2_a8ve6"]
 [ext_resource type="Script" uid="uid://bb52rsfwhkxbn" path="res://addons/dialogue_manager/nodes/responses_menu/dialogue_responses_menu.gd" id="3_72ixx"]
 
@@ -80,7 +80,7 @@ length = 0.001
 tracks/0/type = "bezier"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Progress:position:y")
+tracks/0/path = NodePath("Indicator:position:y")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -96,7 +96,7 @@ step = 0.1
 tracks/0/type = "bezier"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Progress:position:y")
+tracks/0/path = NodePath("Indicator:position:y")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -167,13 +167,31 @@ size_flags_vertical = 3
 text = "Dialogue..."
 
 [node name="Control" type="Control" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer" unique_id=418507161]
-custom_minimum_size = Vector2(20, 10)
+custom_minimum_size = Vector2(170, 28)
 layout_mode = 2
 size_flags_vertical = 8
 
-[node name="Progress" type="Polygon2D" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer/Control" unique_id=2091292889]
+[node name="Indicator" type="Control" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer/Control"]
+layout_mode = 0
+offset_right = 170.0
+offset_bottom = 28.0
+mouse_filter = 2
+
+[node name="ContinueHint" type="Label" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer/Control/Indicator"]
 unique_name_in_owner = true
-polygon = PackedVector2Array(0, 0, 10, 10, 20, 0)
+offset_right = 140.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "E to continue"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Progress" type="Polygon2D" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer/Control/Indicator" unique_id=2091292889]
+unique_name_in_owner = true
+position = Vector2(145, 0)
+polygon = PackedVector2Array(0, 8, 10, 18, 20, 8)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Balloon/MarginContainer/PanelContainer/MarginContainer/HBoxContainer/Control" unique_id=1602634471]
 libraries/ = SubResource("AnimationLibrary_1337t")
@@ -198,10 +216,10 @@ response_template = NodePath("ResponseExample")
 
 [node name="ResponseExample" type="Button" parent="Balloon/CenterContainer/ResponsesMenu" unique_id=1446810977]
 layout_mode = 2
+mouse_filter = 2
 text = "Response example"
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1162558754]
 unique_name_in_owner = true
 
-[connection signal="gui_input" from="Balloon" to="." method="_on_balloon_gui_input"]
 [connection signal="response_selected" from="Balloon/CenterContainer/ResponsesMenu" to="." method="_on_responses_menu_response_selected"]

@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=18
+type="Resource"
+uid="uid://c6bsawx328war"
+path="res://.godot/imported/grandma_greetings.dialogue-38a3f47d536beab421a5a584cad6929f.tres"
+
+[deps]
+
+source_file="res://dialogue/grandma_greetings.dialogue"
+dest_files=["res://.godot/imported/grandma_greetings.dialogue-38a3f47d536beab421a5a584cad6929f.tres"]
+
+[params]
+
+defaults=true
