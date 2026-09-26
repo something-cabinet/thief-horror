@@ -45,15 +45,10 @@ const RECOIL_COEFFICIENT = 10
 const BULLET_SPAWN_POS_VARIATION = 10
 const HITSCAN_COLLISION_MASK = 3
 const HITSCAN_SURFACE_OFFSET = 0.01
-const MIN_STEP_HEIGHT = 0.05
-const STEP_TEST_MARGIN = 0.002
-const STEP_CLEARANCE = 0.005
-const STEP_SEAM_TOLERANCE = 0.02
-const STEP_PROBE_INCREMENT = 0.05
-const STEP_LANDING_MIN_UP_DOT = 0.5
 const STUCK_LOG_INTERVAL_MSEC = 500
 const STUCK_MIN_REQUEST_DISTANCE = 0.005
 const STUCK_PROGRESS_RATIO = 0.15
+const BLOCKED_JUMP_MOTION_EPSILON = 0.001
 const AIRBORNE_WEDGE_RECOVERY_FRAMES = 6
 const AIRBORNE_WEDGE_MOTION_EPSILON = 0.001
 const AIRBORNE_WEDGE_MIN_HEIGHT = 0.05
@@ -148,6 +143,11 @@ func _input(event):
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F3 or event.physical_keycode == KEY_F3:
 			debug_label.visible = not debug_label.visible
+			get_tree().call_group(
+				&"navigation_debuggable",
+				&"set_navigation_debug_visible",
+				debug_label.visible
+			)
 			get_viewport().set_input_as_handled()
 			return
 		if event.keycode == KEY_F4 or event.physical_keycode == KEY_F4:
@@ -550,11 +550,7 @@ func _physics_process(delta):
 	var step_handled := _try_step_up(requested_horizontal_motion)
 	if not step_handled:
 		move_and_slide()
-		# CharacterBody3D clips velocity against floors, ceilings, and walls.
-		# Keep the custom vertical state in sync so a ceiling hit cannot leave the
-		# player applying the old fall speed forever while physically stationary.
-		if not is_on_floor():
-			vel_vertical = velocity.y
+		_sync_vertical_state_after_move(movement_start.y)
 	_recover_from_airborne_wedge(movement_start)
 
 	if debug_label.visible:
@@ -567,107 +563,44 @@ func _physics_process(delta):
 	camera_control(delta)
 
 
-func _try_step_up(horizontal_motion: Vector3) -> bool:
-	if not is_on_floor() or jumped or velocity.y > 0.0:
-		step_debug_reason = "not grounded"
-		return false
-
-	if horizontal_motion.length_squared() < 0.000001:
-		step_debug_reason = "no horizontal motion"
-		return false
-
-	var start_transform := global_transform
-	var obstacle_collision := KinematicCollision3D.new()
-	if not test_move(start_transform, horizontal_motion, obstacle_collision):
-		step_debug_reason = "no obstacle"
-		return false
-	if obstacle_collision.get_collision_count() == 0:
-		step_debug_reason = "obstacle without contact"
-		return false
-	var obstacle_normal := obstacle_collision.get_normal()
-	var obstacle_is_walkable := obstacle_normal.dot(Vector3.UP) >= cos(floor_max_angle)
-
-	# Test the complete player shape, not a ray or a map-specific ramp. Try the
-	# maximum legal rise first, then smaller lifts for low door headers/seams.
-	var maximum_lift := max_step_height + STEP_CLEARANCE
-	var lift_distances: Array[float] = [maximum_lift, STEP_SEAM_TOLERANCE + STEP_CLEARANCE]
-	var probe_height := MIN_STEP_HEIGHT
-	while probe_height < max_step_height - STEP_TEST_MARGIN:
-		lift_distances.append(probe_height + STEP_CLEARANCE)
-		probe_height += STEP_PROBE_INCREMENT
-
-	var last_rejection := "no valid landing"
-	for lift_distance: float in lift_distances:
-		var raised_transform := start_transform
-		var up_motion := Vector3.UP * lift_distance
-		if test_move(start_transform, up_motion):
-			last_rejection = "blocked headroom at %.3f" % lift_distance
-			continue
-		raised_transform.origin += up_motion
-
-		var raised_forward_transform := raised_transform
-		var forward_collision := KinematicCollision3D.new()
-		if test_move(raised_transform, horizontal_motion, forward_collision):
-			last_rejection = "raised path blocked at %.3f" % lift_distance
-			# If the body cannot move forward at the maximum legal rise, the
-			# obstacle is a wall/tall object unless the contact is an overhead
-			# surface. Smaller probes can pass below a low stairwell ceiling.
-			var forward_normal := forward_collision.get_normal(0)
-			if (
-				is_equal_approx(lift_distance, maximum_lift)
-				and not obstacle_is_walkable
-				and forward_normal.y >= -STEP_TEST_MARGIN
-			):
-				break
-			continue
-		raised_forward_transform.origin += horizontal_motion
-
-		var down_motion := Vector3.DOWN * (lift_distance + floor_snap_length)
-		var down_collision := KinematicCollision3D.new()
-		if not test_move(raised_forward_transform, down_motion, down_collision):
-			last_rejection = "no landing at %.3f" % lift_distance
-			continue
-		if down_collision.get_collision_count() == 0:
-			last_rejection = "landing without contact"
-			continue
-
-		var landing_normal := down_collision.get_normal(0)
-		# The capsule's rounded foot initially meets a stair nose diagonally.
-		# A full-height wall remains blocked during the raised forward sweep.
-		if landing_normal.dot(Vector3.UP) < STEP_LANDING_MIN_UP_DOT:
-			last_rejection = "landing not walkable normal=%s" % landing_normal
-			continue
-
-		var landing_position := raised_forward_transform.origin + down_collision.get_travel()
-		var step_height := landing_position.y - start_transform.origin.y
-		var crosses_floor_seam := (
-			obstacle_is_walkable
-			and absf(step_height) <= STEP_SEAM_TOLERANCE
-		)
-		if (
-			(not crosses_floor_seam and step_height < MIN_STEP_HEIGHT)
-			or step_height > max_step_height + STEP_TEST_MARGIN
-		):
-			last_rejection = "landing height %.3f outside range" % step_height
-			continue
-
-		global_position = landing_position
+func _sync_vertical_state_after_move(start_y: float) -> void:
+	# Tight imported doorways can report only their floor contact while an
+	# upward jump is physically blocked. Do not keep reapplying that jump forever.
+	var blocked_upward_motion := (
+		is_on_floor()
+		and vel_vertical > 0.0
+		and global_position.y <= start_y + BLOCKED_JUMP_MOTION_EPSILON
+	)
+	if blocked_upward_motion:
 		vel_vertical = 0.0
 		velocity.y = 0.0
-		is_step_traversing = true
-		# Keep the view at its pre-step height; camera_control() eases it onto
-		# the new floor while the body is already safely supported.
-		if step_height >= MIN_STEP_HEIGHT:
-			neck.position.y -= step_height
-		step_debug_reason = "%s height=%.3f lift=%.3f" % [
-			"crossed floor seam" if crosses_floor_seam else "accepted",
-			step_height,
-			lift_distance,
-		]
-		return true
+		jumped = false
+		current_air_jump_count = 0
+		step_debug_reason = "blocked jump recovered"
+	elif is_on_ceiling():
+		vel_vertical = minf(vel_vertical, 0.0)
+	elif not is_on_floor():
+		vel_vertical = velocity.y
 
-	step_debug_reason = last_rejection
-	return false
+
+func _try_step_up(horizontal_motion: Vector3) -> bool:
+	if jumped:
+		step_debug_reason = "not grounded"
+		return false
+	var result := CharacterStepSolver.try_step_up(
+		self,
+		horizontal_motion,
+		max_step_height
+	)
+	step_debug_reason = result.reason
+	if not result.handled:
+		return false
+	vel_vertical = 0.0
+	is_step_traversing = true
+	# Keep the view at its pre-step height while the body is already supported.
+	if result.step_height >= CharacterStepSolver.MIN_STEP_HEIGHT:
+		neck.position.y -= result.step_height
+	return true
 
 
 func _log_stuck_movement(movement_start: Vector3, requested_motion: Vector3) -> void:
@@ -1036,6 +969,11 @@ func set_preview_mode(enabled: bool) -> void:
 	hitmarker.visible = not enabled
 	hotbar.visible = not enabled and not dialogue_active
 	debug_label.visible = false
+	get_tree().call_group(
+		&"navigation_debuggable",
+		&"set_navigation_debug_visible",
+		false
+	)
 	pause_ui.visible = false
 	pause_ui.is_paused = false
 	pause_ui.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_ALWAYS

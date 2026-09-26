@@ -109,13 +109,13 @@ display_size = 0.5
 item_mass = 0.35
 
 [node name="Player" parent="." unique_id=458969610 instance=ExtResource("1_player")]
-transform = Transform3D(0.7592713, 0, -0.6507742, 0, 1, 0, 0.6507742, 0, 0.7592713, -51.526, -0.187, -104.284)
+transform = Transform3D(0.7592713, 0, -0.6507742, 0, 1, 0, 0.6507742, 0, 0.7592713, -31.71, -0.187, -104.284)
 collision_layer = 4
 collision_mask = 3
 initial_camera_pitch_degrees = 1.3
 
 [node name="GrandmaBlue" parent="." instance=ExtResource("16_grandma_npc")]
-position = Vector3(-50.463, -1.168, -103.373)
+position = Vector3(-30.647, -1.168, -103.373)
 rotation_degrees = Vector3(0, -40.6, 0)
 display_name = "Mabel"
 model_scene = ExtResource("14_grandma")
@@ -126,7 +126,7 @@ follow_target_path = NodePath("../Player")
 random_seed_offset = 31
 
 [node name="GrandmaPurple" parent="." instance=ExtResource("16_grandma_npc")]
-position = Vector3(-50.1, -0.55, -102.83)
+position = Vector3(-30.284, -0.55, -102.83)
 rotation_degrees = Vector3(0, 0, 0)
 display_name = "Edith"
 model_scene = ExtResource("15_grandma_purple")

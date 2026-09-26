@@ -143,6 +143,13 @@ dash={
 "events": []
 }
 
+[navigation]
+
+3d/default_cell_size=0.15
+3d/default_cell_height=0.05
+; This is one verified multi-floor region; stacked boundary edges trigger a false warning.
+3d/warnings/navmesh_edge_merge_errors=false
+
 [internationalization]
 
 locale/translations_pot_files=PackedStringArray("res://dialogue/demo.dialogue", "res://dialogue/intro.dialogue", "res://dialogue/grandma_greetings.dialogue")

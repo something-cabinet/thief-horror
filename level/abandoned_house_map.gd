@@ -3,6 +3,9 @@ extends Node3D
 const TELEVISION_SCREEN_SHADER := preload("res://material/television_screen.gdshader")
 const BLACKBOARD_PLAN_TEXTURE := preload("res://asset/texture/blackboard_robbery_plan.png")
 const BLACKBOARD_CHALK_SHADER := preload("res://material/blackboard_chalk_overlay.gdshader")
+const FRONT_DOOR_STAGING_OFFSET := Vector3(19.816, 0.0, 0.0)
+const RED_SIDE_DOOR_FRAME := &"Marco_P_013"
+const RED_SIDE_DOOR_COLOR := Color(0.82, 0.055, 0.035, 1.0)
 
 const STRUCTURE_COLLISION_PREFIXES := [
 	"Casa",
@@ -104,11 +107,13 @@ const LAMP_MATERIALS := ["Lampara1", "Lampara2", "Lampara3.001", "Foco"]
 
 
 func _ready() -> void:
+	_move_staging_to_front_door()
 	_fix_invalid_imported_materials()
 	_fix_imported_carpet_materials()
 	_fix_imported_glass()
 	_setup_blackboard_plan()
 	_setup_front_door()
+	_setup_red_side_door()
 	_setup_refrigerator_doors()
 	_setup_van_doors()
 	_setup_cabinet_parts()
@@ -160,6 +165,19 @@ func _ready() -> void:
 		structure_count,
 		prop_count,
 	])
+
+
+func _move_staging_to_front_door() -> void:
+	var model := get_node_or_null("Model") as Node3D
+	if model == null:
+		push_warning("Abandoned house model was not found")
+		return
+	for node_name: StringName in [&"Ban", &"Base"]:
+		var staging_node := model.get_node_or_null(NodePath(node_name)) as Node3D
+		if staging_node == null:
+			push_warning("Abandoned house staging node %s was not found" % node_name)
+			continue
+		staging_node.position += FRONT_DOOR_STAGING_OFFSET
 
 
 func _setup_blackboard_plan() -> void:
@@ -335,6 +353,45 @@ func _setup_front_door() -> void:
 	door.global_transform = Transform3D(Basis.IDENTITY, closed_mesh_transform.origin)
 	door_mesh.reparent(door, true)
 	door.configure_collision(closed_world_bounds, closed_mesh_transform.origin)
+
+
+func _setup_red_side_door() -> void:
+	var source_mesh := find_child("Puerta", true, false) as MeshInstance3D
+	var frame := find_child(RED_SIDE_DOOR_FRAME, true, false) as MeshInstance3D
+	if source_mesh == null or source_mesh.mesh == null or frame == null or frame.mesh == null:
+		push_warning("Red side door source mesh or doorway frame was not found")
+		return
+
+	var source_transform := source_mesh.global_transform
+	var source_bounds := _world_bounds(source_mesh)
+	var quarter_turn := Basis(Vector3.UP, deg_to_rad(90.0))
+	var frame_center := _world_bounds(frame).get_center()
+	var source_center_offset := source_bounds.get_center() - source_transform.origin
+
+	var red_mesh := source_mesh.duplicate() as MeshInstance3D
+	red_mesh.name = "RedSideDoorMesh"
+	add_child(red_mesh)
+	red_mesh.global_transform = Transform3D(
+		quarter_turn * source_transform.basis,
+		frame_center - quarter_turn * source_center_offset
+	)
+	for surface_index in red_mesh.mesh.get_surface_count():
+		var source_material := red_mesh.get_active_material(surface_index)
+		if source_material is StandardMaterial3D:
+			var red_material := source_material.duplicate() as StandardMaterial3D
+			red_material.resource_name = "RedDoor"
+			red_material.albedo_color = RED_SIDE_DOOR_COLOR
+			red_material.roughness = 0.88
+			red_mesh.set_surface_override_material(surface_index, red_material)
+
+	var closed_bounds := _world_bounds(red_mesh)
+	var door := InteractableDoor.new()
+	door.name = "RedSideDoor"
+	door.display_name = "Red door"
+	add_child(door)
+	door.global_transform = Transform3D(Basis.IDENTITY, red_mesh.global_position)
+	red_mesh.reparent(door, true)
+	door.configure_collision(closed_bounds, door.global_position)
 
 
 func _setup_refrigerator_doors() -> void:

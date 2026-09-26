@@ -6,7 +6,7 @@ extends Node3D
 #   - Level1 player spawn position/yaw/pitch.
 #   - Collision setup on specific map meshes (trimesh vs. box, non-interactive props).
 #   - Interactables: expected counts, open/close animation, outlines, lamps, TVs,
-#     drawer start states, van doors, front door.
+#     drawer start states, van doors, front door, red side door.
 #   - Player movement: walks a physics-driven player through stairs, doorways and a
 #     synthetic step/obstacle course, checking step-up works, tall obstacles block,
 #     and the camera doesn't jerk upward.
@@ -16,6 +16,9 @@ extends Node3D
 const MAP_SCENE := preload("res://level/AbandonedHouseMap.tscn")
 const PLAYER_SCENE := preload("res://entity/player/Player.tscn")
 const LEVEL_SCENE := preload("res://level/Level1.tscn")
+const GRANDMA_SCENE := preload("res://entity/npc/GrandmaNpc.tscn")
+const GRANDMA_MODEL := preload("res://asset/model/characters/grandma/Grandma.fbx")
+const HUMANOID_ANIMATIONS := preload("res://asset/animation/humanoid/mesh2motion_human_base.glb")
 const DT := 1.0 / 60.0
 const WALK_SPEED := 4.0
 
@@ -35,6 +38,7 @@ func _ready() -> void:
 	_verify_trimesh_collision_prefix(map, "Mesa")
 	_verify_interactables(map)
 	_verify_front_door(map)
+	_verify_red_side_door(map)
 
 	player = PLAYER_SCENE.instantiate() as Player
 	player.collision_layer = 4
@@ -44,11 +48,16 @@ func _ready() -> void:
 	player.set_physics_process(false)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	await _verify_house_navigation(map)
+	await _verify_granny_porch()
+	await _verify_granny_upper_stair()
 	await _verify_interaction_line_of_sight()
+	await _verify_grandma_gait()
 
 	_add_synthetic_course()
 	await get_tree().physics_frame
 	_verify_airborne_wedge_recovery()
+	await _verify_blocked_jump_recovery()
 
 	await _test_path(
 		"basement stairs center",
@@ -128,6 +137,13 @@ func _ready() -> void:
 		func(pos: Vector3) -> bool: return pos.distance_to(Vector3(-48.237, 0.811, -123.996)) > 0.75
 	)
 	await _test_path(
+		"upper bathroom doorway seam",
+		Vector3(-35.078, 4.379, -136.962),
+		Vector3.RIGHT,
+		60,
+		func(pos: Vector3) -> bool: return pos.x > -33.5
+	)
+	await _test_path(
 		"synthetic 0.25m step",
 		Vector3(99.0, 1.001, 100.0),
 		Vector3(1.0, 0.0, 0.0),
@@ -161,7 +177,7 @@ func _ready() -> void:
 func _verify_level_spawn() -> void:
 	var level := LEVEL_SCENE.instantiate()
 	var spawn := level.get_node("Player") as Player
-	var expected_position := Vector3(-51.526, -0.187, -104.284)
+	var expected_position := Vector3(-31.71, -0.187, -104.284)
 	if not spawn.position.is_equal_approx(expected_position):
 		failures.append("level spawn position is %s" % spawn.position)
 	if not is_equal_approx(spawn.rotation_degrees.y, -40.6):
@@ -174,6 +190,28 @@ func _verify_level_spawn() -> void:
 		spawn.initial_camera_pitch_degrees,
 	])
 	level.free()
+
+
+func _verify_blocked_jump_recovery() -> void:
+	player.global_position = Vector3(-35.078, 4.379, -136.962)
+	for _frame in 4:
+		player.velocity = Vector3.DOWN
+		player.move_and_slide()
+		await get_tree().physics_frame
+	var start_y := player.global_position.y
+	player.jumped = true
+	player.vel_vertical = Player.JUMP_FORCE
+	player.velocity = Vector3.UP * Player.JUMP_FORCE
+	player.move_and_slide()
+	player._sync_vertical_state_after_move(start_y)
+	if player.vel_vertical > 0.0 or player.jumped:
+		failures.append("blocked low-header jump leaves the player wedged")
+	print("[BLOCKED_JUMP_TEST] xyz=%s floor=%s vertical=%.1f result=%s" % [
+		player.global_position,
+		player.is_on_floor(),
+		player.vel_vertical,
+		player.step_debug_reason,
+	])
 
 
 func _verify_front_door(map: Node) -> void:
@@ -199,9 +237,159 @@ func _verify_front_door(map: Node) -> void:
 	print("[DOOR_TEST] collision=%s open_angle=%.1f" % [box.size, door.rotation_degrees.y])
 
 
+func _verify_red_side_door(map: Node) -> void:
+	var door := map.find_child("RedSideDoor", true, false) as InteractableDoor
+	if door == null:
+		failures.append("red side door controller is missing")
+		return
+	var collision := door.find_child("InteractionCollision", true, false) as CollisionShape3D
+	var box := collision.shape as BoxShape3D if collision != null else null
+	if box == null or box.size.x > 0.12 or box.size.y < 2.0 or box.size.z < 0.9:
+		failures.append("red side door collision has unexpected size %s" % [box.size if box else null])
+	var door_mesh := door.find_child("RedSideDoorMesh", true, false) as MeshInstance3D
+	var material := door_mesh.get_active_material(0) as StandardMaterial3D if door_mesh else null
+	if material == null or material.albedo_color.r < material.albedo_color.g * 4.0:
+		failures.append("red side door material is missing or not red")
+	door.set_open_immediate(true)
+	if absf(door.rotation_degrees.y) < 90.0:
+		failures.append("red side door did not open")
+	print("[RED_DOOR_TEST] collision=%s open_angle=%.1f" % [
+		box.size if box else Vector3.ZERO,
+		door.rotation_degrees.y,
+	])
+
+
+func _verify_house_navigation(map: Node) -> void:
+	var region := map.get_node_or_null("NavigationRegion3D") as NavigationRegion3D
+	if region == null or region.navigation_mesh == null:
+		failures.append("house navigation region is missing")
+		return
+	for _frame in 20:
+		await get_tree().physics_frame
+	var navigation_map := region.get_navigation_map()
+	NavigationServer3D.map_force_update(navigation_map)
+	var entry_path := NavigationServer3D.map_get_path(
+		navigation_map,
+		Vector3(-30.65, -1.17, -103.37),
+		Vector3(-28.28, 0.81, -120.48),
+		true
+	)
+	var stair_path := NavigationServer3D.map_get_path(
+		navigation_map,
+		Vector3(-28.28, 0.81, -120.48),
+		Vector3(-36.18, 4.38, -126.57),
+		true
+	)
+	var doorway_path := NavigationServer3D.map_get_path(
+		navigation_map,
+		Vector3(-28.48, -0.1, -116.0),
+		Vector3(-28.48, -0.1, -119.0),
+		true
+	)
+	if entry_path.size() < 2:
+		failures.append("house navigation cannot reach the interior")
+	else:
+		var reaches_front_link := false
+		for point: Vector3 in entry_path:
+			if point.distance_to(Vector3(-28.48, -0.1, -117.5)) < 0.1:
+				reaches_front_link = true
+				break
+		if not reaches_front_link:
+			failures.append("entry A* path bypasses the front-door threshold")
+	if stair_path.size() < 2:
+		failures.append("house navigation cannot reach the upper floor")
+	if doorway_path.size() < 2:
+		failures.append("A* cannot cross the front-door threshold")
+	else:
+		for point: Vector3 in doorway_path:
+			if absf(point.x + 28.48) > 0.5:
+				failures.append("front-door A* path detours around the house")
+				break
+	var original_player_position := player.global_position
+	player.global_position = Vector3(-27.042, 0.809, -123.252)
+	var target_probe := GRANDMA_SCENE.instantiate() as GrandmaNpc
+	target_probe.name = "NavigationTargetProbe"
+	target_probe.position = Vector3(-28.0, -0.1, -120.0)
+	add_child(target_probe)
+	target_probe.follow_target = player
+	var exact_target := target_probe._follow_target_ground_position()
+	var selected_target := target_probe._select_follow_navigation_target(exact_target)
+	if not selected_target.is_finite():
+		failures.append("granny cannot project the wall-adjacent player onto navigation")
+	elif not target_probe._follow_navigation_target_is_visible(
+		exact_target,
+		selected_target
+	):
+		failures.append("granny navigation target projects through a wall")
+	elif not target_probe._follow_navigation_target_has_clearance(selected_target):
+		failures.append("granny navigation target has no body clearance")
+	target_probe.free()
+	player.global_position = original_player_position
+	print("[NAVIGATION_TEST] polygons=%d entry=%d stairs=%d doorway=%d target=%s" % [
+		region.navigation_mesh.get_polygon_count(),
+		entry_path.size(),
+		stair_path.size(),
+		doorway_path.size(),
+		selected_target,
+	])
+
+
+func _verify_granny_porch() -> void:
+	var target := Node3D.new()
+	target.name = "GrannyPorchTarget"
+	target.position = Vector3(-28.48, -0.1, -116.8)
+	add_child(target)
+	var granny := GRANDMA_SCENE.instantiate() as GrandmaNpc
+	granny.name = "GrannyPorchTest"
+	granny.position = Vector3(-28.48, -0.55, -114.0)
+	granny.follow_target_path = NodePath("../GrannyPorchTarget")
+	granny.follow_distance = 0.15
+	granny.follow_speed = 1.2
+	granny.catch_up_speed = 1.2
+	granny.catch_up_distance = 100.0
+	add_child(granny)
+	for _frame in 180:
+		await get_tree().physics_frame
+	if granny.global_position.z > -116.3 or granny.global_position.y < -0.3:
+		failures.append("granny cannot step onto the front porch: %s" % granny.global_position)
+	print("[GRANNY_PORCH_TEST] xyz=%s step=%s" % [
+		granny.global_position,
+		granny.last_step_result,
+	])
+	granny.free()
+	target.free()
+
+
+func _verify_granny_upper_stair() -> void:
+	var original_player_position := player.global_position
+	player.global_position = Vector3(-31.937, 4.379, -124.379)
+	var granny := GRANDMA_SCENE.instantiate() as GrandmaNpc
+	granny.name = "GrannyUpperStairTest"
+	granny.position = Vector3(-33.735, 3.045, -126.634)
+	granny.follow_target_path = NodePath("../Player")
+	granny.catch_up_distance = 100.0
+	add_child(granny)
+	for _frame in 150:
+		await get_tree().physics_frame
+	if granny.global_position.y < 3.34 or granny.global_position.z < -125.8:
+		failures.append("granny loops on the upper stair corner: %s" % granny.global_position)
+	print("[GRANNY_UPPER_STAIR_TEST] xyz=%s step=%s" % [
+		granny.global_position,
+		granny.last_step_result,
+	])
+	granny.free()
+	player.global_position = original_player_position
+
+
 func _verify_interactables(map: Node) -> void:
 	var van_mesh := map.find_child("Ban", true, false) as MeshInstance3D
 	var van_center := van_mesh.global_transform * van_mesh.get_aabb().get_center()
+	var front_door := map.find_child("FrontDoor", true, false) as Node3D
+	var van_side_door := map.find_child("Hinged_Puerta_Late", true, false) as Node3D
+	if front_door == null or van_side_door == null:
+		failures.append("front-door van staging nodes are missing")
+	elif absf(front_door.global_position.x - van_side_door.global_position.x) > 0.05:
+		failures.append("van side door is not aligned with the house front door")
 	var moving_count := 0
 	var light_count := 0
 	var television_count := 0
@@ -281,8 +469,8 @@ func _verify_interactables(map: Node) -> void:
 		failures.append("expected 38 interactive lamps, found %d" % light_count)
 	if television_count != 4:
 		failures.append("expected 4 interactive televisions, found %d" % television_count)
-	if moving_count != 71:
-		failures.append("expected 71 moving interactables, found %d" % moving_count)
+	if moving_count != 72:
+		failures.append("expected 72 moving interactables, found %d" % moving_count)
 	_verify_imported_drawer_states(map)
 	_verify_explicit_cabinet_classification(map)
 	_verify_moving_interaction_reversal(map)
@@ -395,6 +583,133 @@ func _verify_interaction_line_of_sight() -> void:
 		failures.append("interaction ray rejects an unobstructed target")
 	target.queue_free()
 	blocker.queue_free()
+
+
+func _verify_grandma_gait() -> void:
+	var gait_navigation_mesh := NavigationMesh.new()
+	gait_navigation_mesh.cell_size = 0.15
+	gait_navigation_mesh.cell_height = 0.05
+	gait_navigation_mesh.vertices = PackedVector3Array([
+		Vector3(296.0, 0.0, 291.0),
+		Vector3(296.0, 0.0, 309.0),
+		Vector3(304.0, 0.0, 309.0),
+		Vector3(304.0, 0.0, 291.0),
+	])
+	gait_navigation_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	var gait_navigation := NavigationRegion3D.new()
+	gait_navigation.name = "GrandmaGaitNavigation"
+	gait_navigation.navigation_mesh = gait_navigation_mesh
+	gait_navigation.use_edge_connections = false
+	add_child(gait_navigation)
+	var floor := _add_box(
+		"GrandmaGaitFloor",
+		Vector3(300.0, -0.1, 300.0),
+		Vector3(8.0, 0.2, 16.0)
+	)
+	var target := Node3D.new()
+	target.name = "GrandmaWalkTarget"
+	target.position = Vector3(300.0, 0.0, 292.0)
+	add_child(target)
+	var grandma := GRANDMA_SCENE.instantiate() as GrandmaNpc
+	grandma.name = "GrandmaGaitTest"
+	grandma.position = Vector3(300.0, 0.01, 304.0)
+	grandma.model_scene = GRANDMA_MODEL
+	grandma.animation_library = HUMANOID_ANIMATIONS
+	grandma.follow_target_path = NodePath("../GrandmaWalkTarget")
+	grandma.follow_distance = 0.2
+	grandma.follow_speed = 0.65
+	grandma.catch_up_distance = 100.0
+	add_child(grandma)
+	await get_tree().physics_frame
+	await get_tree().process_frame
+	if grandma.navigation_agent == null:
+		failures.append("granny navigation agent was not created")
+	elif not grandma.navigation_agent.avoidance_enabled:
+		failures.append("granny local avoidance is disabled")
+	grandma.set_navigation_debug_visible(true)
+	if grandma.navigation_debug_instance == null or not grandma.navigation_debug_instance.visible:
+		failures.append("granny F3 navigation path debug is unavailable")
+	grandma.set_navigation_debug_visible(false)
+	if grandma.left_foot_ik == null or grandma.right_foot_ik == null:
+		failures.append("grandma foot planting IK was not created")
+		grandma.free()
+		target.free()
+		floor.free()
+		gait_navigation.free()
+		return
+	# Let the initial idle-to-walk blend finish before measuring a complete gait.
+	for _frame in 90:
+		await get_tree().physics_frame
+
+	var left_metrics := {
+		"samples": 0,
+		"active": false,
+		"last_target": Vector3.ZERO,
+		"max_target_drift": 0.0,
+		"max_foot_error": 0.0,
+	}
+	var right_metrics := left_metrics.duplicate(true)
+	grandma.left_foot_ik.modification_processed.connect(
+		_record_grandma_foot_plant.bind(grandma, true, left_metrics)
+	)
+	grandma.right_foot_ik.modification_processed.connect(
+		_record_grandma_foot_plant.bind(grandma, false, right_metrics)
+	)
+	var start_position := grandma.global_position
+	for _frame in 180:
+		await get_tree().physics_frame
+	var traveled := grandma.global_position.distance_to(start_position)
+	var measured_speed := traveled / 3.0
+	var expected_animation_scale := grandma.follow_speed / grandma.WALK_ANIMATION_REFERENCE_SPEED
+	if not is_equal_approx(grandma.animation_player.speed_scale, expected_animation_scale):
+		failures.append("grandma walk cadence is not synchronized to movement speed")
+	for metrics in [left_metrics, right_metrics]:
+		if int(metrics.samples) < 10:
+			failures.append("grandma foot planting did not produce enough stance samples")
+		if float(metrics.max_foot_error) > 0.01:
+			failures.append("grandma planted foot misses its target by %.4fm" % metrics.max_foot_error)
+		if float(metrics.max_target_drift) > 0.001:
+			failures.append("grandma foot target drifts %.4fm during stance" % metrics.max_target_drift)
+	if measured_speed < 0.60 or measured_speed > 0.70:
+		failures.append("grandma follow speed is %.3fm/s" % measured_speed)
+	print("[GRANDMA_GAIT_TEST] speed=%.3f scale=%.3f left_error=%.4f right_error=%.4f" % [
+		measured_speed,
+		grandma.animation_player.speed_scale,
+		left_metrics.max_foot_error,
+		right_metrics.max_foot_error,
+	])
+	grandma.free()
+	target.free()
+	floor.free()
+	gait_navigation.free()
+
+
+func _record_grandma_foot_plant(
+	grandma: GrandmaNpc,
+	is_left: bool,
+	metrics: Dictionary
+) -> void:
+	var ik := grandma.left_foot_ik if is_left else grandma.right_foot_ik
+	if ik.influence < 0.999:
+		metrics.active = false
+		return
+	var target := grandma.left_foot_target if is_left else grandma.right_foot_target
+	var foot_bone := grandma.left_foot_bone if is_left else grandma.right_foot_bone
+	var foot_position := grandma.skeleton.to_global(
+		grandma.skeleton.get_bone_global_pose(foot_bone).origin
+	)
+	metrics.samples = int(metrics.samples) + 1
+	metrics.max_foot_error = maxf(
+		float(metrics.max_foot_error),
+		foot_position.distance_to(target.global_position)
+	)
+	if bool(metrics.active):
+		metrics.max_target_drift = maxf(
+			float(metrics.max_target_drift),
+			target.global_position.distance_to(metrics.last_target as Vector3)
+		)
+	metrics.active = true
+	metrics.last_target = target.global_position
 
 
 func _verify_airborne_wedge_recovery() -> void:
