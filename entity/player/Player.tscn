@@ -2,11 +2,9 @@
 
 [ext_resource type="Script" uid="uid://y3dkjdtrjdd" path="res://entity/player/player.gd" id="1_rl0vi"]
 [ext_resource type="Texture2D" uid="uid://ddwxkjlbdh8hq" path="res://asset/sprite/blob_shadow.png" id="3_tgexf"]
-[ext_resource type="PackedScene" uid="uid://oai4dltwisn0" path="res://entity/weapon/gun/StarterPistol.tscn" id="3_wg1yd"]
 [ext_resource type="PackedScene" uid="uid://by6prw5q6j6sk" path="res://entity/player/ShakeableCamera.tscn" id="4_37fec"]
 [ext_resource type="Texture2D" uid="uid://b5e6b8k4p1iw0" path="res://asset/ui/default_crosshair.png" id="4_ymis7"]
 [ext_resource type="PackedScene" uid="uid://cd1tqjm2e87jy" path="res://entity/player/AimRay.tscn" id="5_dqbuo"]
-[ext_resource type="PackedScene" uid="uid://dq2l72hrdmbds" path="res://entity/weapon/gun/VectorSMG.tscn" id="5_gioix"]
 [ext_resource type="Texture2D" uid="uid://bhyt4cp422lbb" path="res://asset/ui/hitmarker_lg.png" id="5_nkt42"]
 [ext_resource type="PackedScene" uid="uid://byj1y3wrwtdtq" path="res://ui/PauseUI.tscn" id="5_srijb"]
 [ext_resource type="Script" uid="uid://802oee2j6xh8" path="res://addons/godot_state_charts/state_chart.gd" id="6_t33b7"]
@@ -97,15 +95,6 @@ theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 12
 text = "VSpeed: 0 u/s
 HSpeed: 0 u/s"
-
-[node name="GunContainer" type="Node3D" parent="Neck/ShakeableCamera" unique_id=1112067056]
-transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, 0.051, -0.1, -0.185)
-visible = false
-
-[node name="StarterPistol" parent="Neck/ShakeableCamera/GunContainer" unique_id=1258628417 instance=ExtResource("3_wg1yd")]
-
-[node name="VectorSMG" parent="Neck/ShakeableCamera/GunContainer" unique_id=1237007862 instance=ExtResource("5_gioix")]
-visible = false
 
 [node name="HeldItemPivot" type="Node3D" parent="Neck/ShakeableCamera" unique_id=233588970]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.22, -0.55)

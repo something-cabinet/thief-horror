@@ -85,3 +85,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.519897, -4.25464, 0)
 operation = 2
 size = Vector3(2.82886, 3.49072, 1)
 material = ExtResource("4_3twv6")
+
+[node name="Moonlight" type="DirectionalLight3D" parent="." unique_id=1453314783]
+transform = Transform3D(0.88294756, 0.36994863, -0.2890356, 0, 0.6156615, 0.7880107, 0.46947157, -0.6957722, 0.5435968, 0, 0, 0)
+light_color = Color(0.38, 0.48, 0.7, 1)
+light_energy = 0.38
+shadow_enabled = true
+shadow_opacity = 0.72

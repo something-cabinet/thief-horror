@@ -8,12 +8,12 @@ const FLOOR_GUARD_SAMPLE_OFFSET := 0.12
 
 @export var item_id: StringName
 @export var display_name := "Item"
-@export var item_kind: StringName = &"item"
-@export var gun_slot := -1
 @export var model_scene: PackedScene
 @export var icon: Texture2D
 @export_range(0.2, 1.5, 0.05) var display_size := 0.55
 @export_range(0.05, 10.0, 0.05) var item_mass := 0.5
+## Persistent item state (e.g. a lamp being lit), shared with the HeldItem scene.
+@export var item_state: Dictionary = {}
 
 @onready var model_anchor: Node3D = $ModelAnchor
 @onready var temporary_collider: CollisionShape3D = $TemporaryCollider # To avoid Godot warning
@@ -44,6 +44,8 @@ func _ready() -> void:
 	model_instance = model_scene.instantiate() as Node3D
 	model_anchor.add_child(model_instance)
 	model_instance.process_mode = Node.PROCESS_MODE_DISABLED
+	if model_instance is HeldItem:
+		(model_instance as HeldItem).apply_state(item_state)
 	_prepare_model()
 	_create_compound_collision()
 
@@ -133,8 +135,7 @@ func collect(player: Player) -> bool:
 		icon,
 		display_size,
 		item_mass,
-		item_kind,
-		gun_slot
+		item_state
 	):
 		return false
 	queue_free()

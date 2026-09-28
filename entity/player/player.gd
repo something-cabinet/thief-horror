@@ -18,7 +18,6 @@ class_name Player
 @onready var crouching_collision: CollisionShape3D = $CrouchingCollision
 @onready var audio_player: CharacterAudioPlayer3D = $CharacterAudioPlayer3D
 
-@onready var gun_container = $Neck/ShakeableCamera/GunContainer
 @onready var held_item_pivot: Node3D = $Neck/ShakeableCamera/HeldItemPivot
 @onready var aim_ray: AimRay = $Neck/ShakeableCamera/AimRay
 @onready var aim_reticle: TextureRect = $Neck/ShakeableCamera/AimRecticle
@@ -30,6 +29,11 @@ var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
 var starter_pistol_icon = preload("res://asset/ui/starter_pistol_icon.png")
 var starter_pistol_scene = preload("res://entity/weapon/gun/StarterPistol.tscn")
 var pickup_item_scene = preload("res://entity/item/PickupItem.tscn")
+# Guns whose shot effects are pooled before gameplay starts.
+var prewarmed_gun_scenes: Array[PackedScene] = [
+	starter_pistol_scene,
+	preload("res://entity/weapon/gun/VectorSMG.tscn"),
+]
 var interaction_outline_shader = preload("res://material/interaction_outline.gdshader")
 
 const MAX_SPEED = 4.0
@@ -42,9 +46,7 @@ const FALL_SPEED_TO_SHAKE_CAMERA = 15
 const HEAVY_FALL_SHAKE_TRAUMA = 0.8
 const SLIDE_SHAKE_TRAUMA = 0.1
 const MIN_HEIGHT_TO_SLAM = 1.5
-const SWAP_GUN_TIME = 0.3
 const RECOIL_COEFFICIENT = 10
-const BULLET_SPAWN_POS_VARIATION = 10
 const HITSCAN_COLLISION_MASK = 3
 const HITSCAN_SURFACE_OFFSET = 0.01
 const STUCK_LOG_INTERVAL_MSEC = 500
@@ -80,16 +82,13 @@ var is_crouching := false:
 var raw_input_dir = Vector2(0, 0)
 var input_dir = Vector2(0, 0)
 var bonus_speed = 0
-var gun_container_original_pos: Vector3
+var held_item_pivot_original_pos: Vector3
 var last_dashed_timestamp
 var current_air_jump_count = 0
 var slide_dir = Vector2(0, 0)
-var current_gun_slot = 0
-var is_swapping_gun = false
 var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
 var shot_assets_ready := false
-var attack_input_armed := false
 var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
@@ -117,24 +116,18 @@ func _ready():
 	player_camera.rotation_degrees.x = initial_camera_pitch_degrees
 	if not GameManager.is_preparing_first_level:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	gun_container_original_pos = gun_container.position
+	held_item_pivot_original_pos = held_item_pivot.position
 	last_dashed_timestamp = 0
-	current_gun_slot = 0
-	gun_container.visible = true
-	for child in gun_container.get_children():
-		child.visible = false
-	gun_container.get_child(current_gun_slot).visible = true
 	for index in INVENTORY_SIZE:
 		inventory.append({})
 	inventory[0] = {
 		"id": &"starter_pistol",
 		"name": "Pistol",
-		"kind": "gun",
-		"gun_slot": 0,
 		"icon": starter_pistol_icon,
 		"scene": starter_pistol_scene,
 		"display_size": 0.55,
 		"mass": 1.0,
+		"state": {},
 	}
 	hotbar.update_slots(inventory, selected_item_slot)
 	var dialogue_manager: Node = Engine.get_singleton("DialogueManager")
@@ -196,22 +189,10 @@ func _process(delta):
 	_sync_interaction_outline_camera()
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
 	_update_interaction_target()
-	# Disarming also stops the click that closes the last dialogue line from firing.
-	if dialogue_active:
-		attack_input_armed = false
-		return
-	if not _selected_item_is_gun():
-		attack_input_armed = false
-		return
-	if not attack_input_armed:
-		attack_input_armed = (
-			not Input.is_action_pressed("primary_attack")
-			and not Input.is_action_pressed("secondary_attack")
-		)
-		return
-	if not is_swapping_gun:
-		check_primary_attack()
-		check_secondary_attack()
+
+
+func can_use_held_item() -> bool:
+	return not dialogue_active and not preview_mode
 
 
 func add_inventory_item(
@@ -221,8 +202,7 @@ func add_inventory_item(
 	icon: Texture2D,
 	display_size := 0.55,
 	item_mass := 0.5,
-	item_kind: StringName = &"item",
-	gun_slot := -1
+	item_state: Dictionary = {}
 ) -> bool:
 	for slot_index in INVENTORY_SIZE:
 		if inventory[slot_index].is_empty():
@@ -233,8 +213,7 @@ func add_inventory_item(
 				"icon": icon,
 				"display_size": display_size,
 				"mass": item_mass,
-				"kind": item_kind,
-				"gun_slot": gun_slot,
+				"state": item_state,
 			}
 			_select_item_slot(slot_index)
 			return true
@@ -249,12 +228,11 @@ func _throw_selected_item() -> void:
 	var dropped := pickup_item_scene.instantiate() as PickupItem
 	dropped.item_id = StringName(item.get("id", &""))
 	dropped.display_name = String(item.get("name", "Item"))
-	dropped.item_kind = StringName(item.get("kind", &"item"))
-	dropped.gun_slot = int(item.get("gun_slot", -1))
 	dropped.model_scene = item.get("scene") as PackedScene
 	dropped.icon = item.get("icon") as Texture2D
 	dropped.display_size = float(item.get("display_size", 0.55))
 	dropped.item_mass = float(item.get("mass", 0.5))
+	dropped.item_state = item.get("state", {})
 	get_parent().add_child(dropped)
 	var throw_direction := (-player_camera.camera.global_basis.z + Vector3.UP * 0.12).normalized()
 	dropped.global_basis = player_camera.camera.global_basis * _held_item_basis(item)
@@ -410,7 +388,6 @@ func _probe_surface_coordinate() -> void:
 
 func _select_item_slot(slot_index: int) -> void:
 	selected_item_slot = clampi(slot_index, 0, INVENTORY_SIZE - 1)
-	attack_input_armed = false
 	hotbar.update_slots(inventory, selected_item_slot)
 	_refresh_held_item()
 
@@ -418,27 +395,25 @@ func _select_item_slot(slot_index: int) -> void:
 func _refresh_held_item() -> void:
 	for child in held_item_pivot.get_children():
 		child.free()
-	gun_container.visible = false
-	for child in gun_container.get_children():
-		child.visible = false
 	var item := inventory[selected_item_slot]
 	if item.is_empty():
-		return
-	if item.get("kind", "") == "gun":
-		current_gun_slot = int(item.get("gun_slot", 0))
-		gun_container.visible = true
-		var gun := gun_container.get_child(current_gun_slot) as Gun
-		gun.visible = true
-		gun.reset_for_gameplay()
 		return
 	var model_scene := item.get("scene") as PackedScene
 	if model_scene == null:
 		return
 	var holder := Node3D.new()
-	holder.basis = _held_item_basis(item)
 	held_item_pivot.add_child(holder)
 	var model := model_scene.instantiate() as Node3D
 	holder.add_child(model)
+	var held_item := model as HeldItem
+	if held_item != null:
+		if not item.has("state"):
+			item["state"] = {}
+		held_item.equip(self, item["state"])
+		if not held_item.fit_to_hand:
+			holder.transform = held_item.hand_transform
+			return
+	holder.basis = _held_item_basis(item)
 	var bounds := _calculate_model_bounds(model)
 	var longest_side := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
 	if longest_side <= 0.0001:
@@ -446,12 +421,6 @@ func _refresh_held_item() -> void:
 	var scale_factor := 0.34 / longest_side
 	model.scale = Vector3.ONE * scale_factor
 	model.position = - bounds.get_center() * scale_factor
-
-
-func _selected_item_is_gun() -> bool:
-	if inventory.is_empty():
-		return false
-	return inventory[selected_item_slot].get("kind", "") == "gun"
 
 
 func _held_item_basis(item: Dictionary) -> Basis:
@@ -563,9 +532,8 @@ func _physics_process(delta):
 		_log_stuck_movement(movement_start, requested_horizontal_motion)
 		show_debug_label()
 
-	var gun_sway_velocity = velocity * transform.basis
-	if not is_swapping_gun:
-		gun_container.position = lerp(gun_container.position, gun_container_original_pos - (gun_sway_velocity / 500), delta * 10)
+	var held_item_sway_velocity = velocity * transform.basis
+	held_item_pivot.position = lerp(held_item_pivot.position, held_item_pivot_original_pos - (held_item_sway_velocity / 500), delta * 10)
 	camera_control(delta)
 
 
@@ -718,69 +686,9 @@ func jump(multiplier = 1.0):
 	if _can_stand():
 		is_crouching = false
 
-func check_primary_attack():
-	if Input.is_action_pressed("primary_attack"):
-		var gun: Gun = gun_container.get_child(current_gun_slot)
-		if not gun.try_primary_attack():
-			return
-		gun.play_primary_attack_anim()
-		perform_attack(gun)
-
-func check_secondary_attack():
-	var gun: Gun = gun_container.get_child(current_gun_slot)
-	match gun.data.secondary_type:
-		EnumAutoload.GunSecondaryAttackType.CLICK_ATTACK:
-			if Input.is_action_just_pressed("secondary_attack") and gun.try_secondary_attack():
-				gun.play_secondary_attack_anim()
-				perform_attack(gun, true)
-		EnumAutoload.GunSecondaryAttackType.CLICK_NONATTACK:
-			if Input.is_action_just_pressed("secondary_attack") and gun.try_secondary_attack():
-				gun.play_secondary_attack_anim()
-				# TODO: gun secondary nonattack implementation
-		EnumAutoload.GunSecondaryAttackType.HOLD:
-			if Input.is_action_pressed("secondary_attack") and gun.try_secondary_attack():
-				if not gun.check_if_animation_playing("secondary_attack_hold"):
-					gun.play_secondary_attack_anim()
-					# TODO: gun secondary hold implementation
-		EnumAutoload.GunSecondaryAttackType.HOLD_AND_RELEASE:
-			if Input.is_action_pressed("secondary_attack") and gun.try_secondary_attack(true):
-				# Make sure only played once
-				if not gun.check_if_animation_playing("secondary_attack_hold"):
-					gun.start_charge()
-					gun.play_secondary_attack_hold_anim()
-			elif Input.is_action_just_released("secondary_attack"):
-				if gun.release_charge():
-					if gun.try_secondary_attack():
-						gun.play_secondary_attack_release_anim()
-						perform_attack(gun, true, gun.data.secondary_bounce_time, gun.data.secondary_pierce)
-						# TODO: gun secondary hold implementation
-					else:
-						gun.play_idle_anim()
-				else:
-					gun.play_idle_anim()
-
-func perform_attack(gun: Gun, is_secondary: bool = false, bounce_count = 0, is_pierce = false):
-	var gun_projectile: PackedScene = gun.primary_projectile
-	var screenshake_amount = gun.data.primary_screenshake
-	var gun_sfx = gun.data.primary_sfx
-	var damage = gun.data.primary_damage
-	is_pierce = is_pierce or gun.data.primary_pierce
-	if is_secondary:
-		gun_projectile = gun.secondary_projetile
-		screenshake_amount = gun.data.secondary_screenshake
-		gun_sfx = gun.data.secondary_sfx
-		damage = gun.data.secondary_damage
-		is_pierce = is_pierce or gun.data.secondary_pierce
-	play_sfx(gun_sfx)
-	gun.play_muzzle_flash(is_secondary)
-	var bullet_start_pos = gun.barrel.global_position
-	# Randomize bullet start pos a bit
-	bullet_start_pos.x += randf_range(-screenshake_amount / BULLET_SPAWN_POS_VARIATION, screenshake_amount / BULLET_SPAWN_POS_VARIATION)
-	bullet_start_pos.y += randf_range(-screenshake_amount / BULLET_SPAWN_POS_VARIATION, screenshake_amount / BULLET_SPAWN_POS_VARIATION)
-	create_hitscan_attack(bullet_start_pos, (aim_ray.aim_ray_end.global_position - bullet_start_pos), bounce_count, gun_projectile, damage, is_pierce)
-	# Screenshake
+# Screenshake and recoil from a fired shot.
+func apply_shot_kick(screenshake_amount: float) -> void:
 	player_camera.add_trauma(screenshake_amount)
-	# Recoil
 	player_camera.rotate_x(screenshake_amount / RECOIL_COEFFICIENT)
 	player_camera.rotate_y(randf_range(-screenshake_amount / RECOIL_COEFFICIENT, screenshake_amount / RECOIL_COEFFICIENT))
 
@@ -806,17 +714,6 @@ func camera_control(delta):
 		neck.position.y = lerp(neck.position.y, -1.0, delta * 5)
 	else:
 		neck.position.y = lerp(neck.position.y, 0.0, delta * 5)
-
-func swap_gun():
-	var tween = get_tree().create_tween()
-	is_swapping_gun = true
-	tween.tween_property(gun_container, "position:y", -0.5, SWAP_GUN_TIME).set_trans(Tween.TRANS_LINEAR)
-	await get_tree().create_timer(SWAP_GUN_TIME * 1.5).timeout
-	for child: Gun in gun_container.get_children():
-		child.visible = false
-		child.swapped_out()
-	gun_container.get_child(current_gun_slot).visible = true
-	is_swapping_gun = false
 
 func _on_dash_duration_timeout() -> void:
 	is_dashing = false
@@ -976,16 +873,17 @@ func _on_particle_released(effect: SelfDestruct3DParticle, key: String) -> void:
 	particle_pools[key] = pool
 
 func prewarm_shot_assets() -> void:
-	for child in gun_container.get_children():
-		if child is Gun:
-			prewarm_hitscan(child.primary_projectile)
-			prewarm_hitscan(child.secondary_projetile)
+	for gun_scene in prewarmed_gun_scenes:
+		var gun := gun_scene.instantiate() as Gun
+		prewarm_hitscan(gun.primary_projectile)
+		prewarm_hitscan(gun.secondary_projetile)
+		gun.free()
 	prewarm_enemy_effects(get_parent())
 	shot_assets_ready = true
 
 func set_preview_mode(enabled: bool) -> void:
 	preview_mode = enabled
-	gun_container.visible = false
+	held_item_pivot.visible = not enabled
 	aim_reticle.visible = not enabled
 	hitmarker.visible = not enabled
 	hotbar.visible = not enabled and not dialogue_active

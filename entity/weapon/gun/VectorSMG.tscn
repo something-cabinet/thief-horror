@@ -345,6 +345,8 @@ script = ExtResource("1_2sbr0")
 data = ExtResource("2_frjn6")
 primary_projectile = ExtResource("3_by888")
 secondary_projetile = ExtResource("4_6cxll")
+fit_to_hand = false
+hand_transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, -0.169, 0.12, 0.365)
 
 [node name="ModelParent" type="Node3D" parent="."]
 transform = Transform3D(-1, 0, 2.53518e-06, 0, 1, 0, -2.53518e-06, 0, -1, 0, 0, 0)

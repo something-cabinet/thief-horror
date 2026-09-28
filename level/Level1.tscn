@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dfn5obt3y3j25" path="res://level/AbandonedHouseMap.tscn" id="3_map"]
 [ext_resource type="PackedScene" path="res://level/Rain.tscn" id="4_rain"]
 [ext_resource type="PackedScene" uid="uid://bwkmoxw0j77nn" path="res://entity/item/PickupItem.tscn" id="5_pickup"]
-[ext_resource type="PackedScene" uid="uid://c815tq6awnsau" path="res://asset/model/items/models/ps1_brass_bankers_desk_lamp.glb" id="6_lamp_model"]
+[ext_resource type="PackedScene" path="res://entity/item/BankersLamp.tscn" id="6_lamp_model"]
 [ext_resource type="Texture2D" uid="uid://dhlcexnn7m1e0" path="res://asset/model/items/icons/ps1_brass_bankers_desk_lamp.png" id="7_lamp_icon"]
 [ext_resource type="PackedScene" uid="uid://pphy7l5f3dwq" path="res://asset/model/items/models/ps1_antique_radio.glb" id="8_radio_model"]
 [ext_resource type="Texture2D" uid="uid://cyau772t8mu28" path="res://asset/model/items/icons/ps1_antique_radio.png" id="9_radio_icon"]
@@ -69,8 +69,6 @@ shadow_opacity = 0.72
 transform = Transform3D(0.9135454, 0, 0.40673664, 0, 1, 0, -0.40673664, 0, 0.9135454, -25.942, 0.839, -119.208)
 item_id = &"cigarettes"
 display_name = "Cigarettes"
-item_kind = &"item"
-gun_slot = -1
 model_scene = ExtResource("10_cigs_model")
 icon = ExtResource("11_cigs_icon")
 display_size = 0.48
@@ -80,8 +78,6 @@ item_mass = 0.2
 transform = Transform3D(0.81915206, 0, -0.57357645, 0, 1, 0, 0.57357645, 0, 0.81915206, -31.62, 1.196, -121.436)
 item_id = &"bankers_lamp"
 display_name = "Banker's Lamp"
-item_kind = &"item"
-gun_slot = -1
 model_scene = ExtResource("6_lamp_model")
 icon = ExtResource("7_lamp_icon")
 display_size = 0.65
@@ -91,8 +87,6 @@ item_mass = 2.2
 transform = Transform3D(0.1391731, 0, 0.99026805, 0, 1, 0, -0.99026805, 0, 0.1391731, -44.51091, 2.281764, -126.43083)
 item_id = &"antique_radio"
 display_name = "Antique Radio"
-item_kind = &"item"
-gun_slot = -1
 model_scene = ExtResource("8_radio_model")
 icon = ExtResource("9_radio_icon")
 display_size = 0.62
@@ -102,8 +96,6 @@ item_mass = 3.0
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -53, 0.85, -121.4)
 item_id = &"notebook"
 display_name = "Notebook"
-item_kind = &"item"
-gun_slot = -1
 model_scene = ExtResource("12_notebook_model")
 icon = ExtResource("13_notebook_icon")
 display_size = 0.5

@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://entity/item/bankers_lamp.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://c815tq6awnsau" path="res://asset/model/items/models/ps1_brass_bankers_desk_lamp.glb" id="2_model"]
+
+[node name="BankersLamp" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Glow" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 0.55, 0)
+visible = false
+light_color = Color(1, 0.82, 0.55, 1)
+light_energy = 1.6
+shadow_enabled = true
+omni_range = 3.0
+omni_attenuation = 1.4
