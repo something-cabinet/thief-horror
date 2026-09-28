@@ -876,7 +876,6 @@ func prewarm_shot_assets() -> void:
 	for gun_scene in prewarmed_gun_scenes:
 		var gun := gun_scene.instantiate() as Gun
 		prewarm_hitscan(gun.primary_projectile)
-		prewarm_hitscan(gun.secondary_projetile)
 		gun.free()
 	prewarm_enemy_effects(get_parent())
 	shot_assets_ready = true

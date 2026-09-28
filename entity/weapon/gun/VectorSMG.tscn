@@ -1,9 +1,8 @@
-[gd_scene load_steps=32 format=3 uid="uid://dq2l72hrdmbds"]
+[gd_scene format=3 uid="uid://dq2l72hrdmbds"]
 
 [ext_resource type="Script" path="res://entity/weapon/gun/gun.gd" id="1_2sbr0"]
 [ext_resource type="Resource" uid="uid://dvpqi7d2j8ui7" path="res://entity/weapon/gun/data/vector_smg.tres" id="2_frjn6"]
 [ext_resource type="PackedScene" uid="uid://d4jbfgjx5ny48" path="res://entity/weapon/gun/projectiles/VectorSMGPrimaryHitscan.tscn" id="3_by888"]
-[ext_resource type="PackedScene" uid="uid://bascf4vtdaok6" path="res://entity/weapon/gun/projectiles/VectorSMGSecondaryHitscan.tscn" id="4_6cxll"]
 [ext_resource type="PackedScene" uid="uid://d3ulx8v6ei5uu" path="res://entity/weapon/gun/vfx/MuzzleFlash.tscn" id="5_3u48o"]
 [ext_resource type="Texture2D" uid="uid://dgavm2o1xjvec" path="res://asset/model/uzi_gun/UZI_Material.png" id="5_xqepb"]
 
@@ -134,156 +133,10 @@ tracks/2/keys = {
 "values": [Vector3(0, 3.14159, 0)]
 }
 
-[sub_resource type="Animation" id="Animation_x44cy"]
-resource_name = "secondary_attack"
-length = 0.9
-step = 0.05
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent/ModelParent2:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.05, 0.65, 0.9),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
-"update": 0,
-"values": [Vector3(0, 0, 0), Vector3(0, 0.15, -0.2), Vector3(0, 0, 0.1), Vector3(0, 0, 0)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.05, 0.35, 0.65, 0.9),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
-"update": 0,
-"values": [Vector3(0, 0, 0), Vector3(-0.698132, 0, 0), Vector3(-0.698132, 0, 0), Vector3(0.174533, 0, 0), Vector3(0, 0, 0)]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 3.14159, 0)]
-}
-
-[sub_resource type="Animation" id="Animation_wfanj"]
-resource_name = "secondary_attack_hold"
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:position")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 3.14159, 0)]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("ModelParent/ModelParent2:rotation")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-
-[sub_resource type="Animation" id="Animation_kxjq5"]
-resource_name = "secondary_attack_release"
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:position")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 3.14159, 0)]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("ModelParent/ModelParent2:rotation")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector3(0, 0, 0)]
-}
-
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_pdxbw"]
 _data = {
 "idle": SubResource("Animation_umnil"),
-"primary_attack": SubResource("Animation_wq4m6"),
-"secondary_attack": SubResource("Animation_x44cy"),
-"secondary_attack_hold": SubResource("Animation_wfanj"),
-"secondary_attack_release": SubResource("Animation_kxjq5")
+"primary_attack": SubResource("Animation_wq4m6")
 }
 
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_mppdn"]
@@ -292,37 +145,12 @@ animation = &"idle"
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_h1ts1"]
 animation = &"primary_attack"
 
-[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_icyly"]
-animation = &"secondary_attack"
-
-[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_wmglb"]
-animation = &"secondary_attack_hold"
-
-[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_0x4an"]
-animation = &"secondary_attack_release"
-
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_0ci4w"]
 advance_mode = 2
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_h3hq2"]
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_gvs8i"]
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_if7fg"]
-xfade_time = 0.2
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_5gmf4"]
-switch_mode = 1
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_lki36"]
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_6hyn3"]
-xfade_time = 0.3
-switch_mode = 1
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_wbb36"]
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_kdgup"]
 
 [sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_suoh1"]
 states/End/position = Vector2(1067, 100)
@@ -331,20 +159,13 @@ states/idle/node = SubResource("AnimationNodeAnimation_mppdn")
 states/idle/position = Vector2(322, 74)
 states/primary_attack/node = SubResource("AnimationNodeAnimation_h1ts1")
 states/primary_attack/position = Vector2(322, -24)
-states/secondary_attack/node = SubResource("AnimationNodeAnimation_icyly")
-states/secondary_attack/position = Vector2(482, 74)
-states/secondary_attack_hold/node = SubResource("AnimationNodeAnimation_wmglb")
-states/secondary_attack_hold/position = Vector2(220, 201)
-states/secondary_attack_release/node = SubResource("AnimationNodeAnimation_0x4an")
-states/secondary_attack_release/position = Vector2(456, 201)
-transitions = ["Start", "idle", SubResource("AnimationNodeStateMachineTransition_0ci4w"), "idle", "primary_attack", SubResource("AnimationNodeStateMachineTransition_h3hq2"), "primary_attack", "idle", SubResource("AnimationNodeStateMachineTransition_gvs8i"), "idle", "secondary_attack_hold", SubResource("AnimationNodeStateMachineTransition_if7fg"), "secondary_attack_hold", "secondary_attack_release", SubResource("AnimationNodeStateMachineTransition_5gmf4"), "secondary_attack_release", "idle", SubResource("AnimationNodeStateMachineTransition_lki36"), "secondary_attack_hold", "idle", SubResource("AnimationNodeStateMachineTransition_6hyn3"), "idle", "secondary_attack", SubResource("AnimationNodeStateMachineTransition_wbb36"), "secondary_attack", "idle", SubResource("AnimationNodeStateMachineTransition_kdgup")]
+transitions = ["Start", "idle", SubResource("AnimationNodeStateMachineTransition_0ci4w"), "idle", "primary_attack", SubResource("AnimationNodeStateMachineTransition_h3hq2"), "primary_attack", "idle", SubResource("AnimationNodeStateMachineTransition_gvs8i")]
 graph_offset = Vector2(-214, -53)
 
 [node name="VectorSMG" type="Node3D"]
 script = ExtResource("1_2sbr0")
 data = ExtResource("2_frjn6")
 primary_projectile = ExtResource("3_by888")
-secondary_projetile = ExtResource("4_6cxll")
 fit_to_hand = false
 hand_transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, -0.169, 0.12, 0.365)
 
@@ -367,9 +188,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00790897, 0.0529133, -0.46
 frame_progress = 0.0
 
 [node name="FireRateTimer" type="Timer" parent="."]
-one_shot = true
-
-[node name="SecondaryTimer" type="Timer" parent="."]
 one_shot = true
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
