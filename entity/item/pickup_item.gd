@@ -128,18 +128,34 @@ func _support_extent_along(normal: Vector3, body_basis: Basis) -> float:
 
 
 func collect(player: Player) -> bool:
-	if not player.add_inventory_item(
-		item_id,
-		display_name,
-		model_scene,
-		icon,
-		display_size,
-		item_mass,
-		item_state
-	):
+	if not player.add_inventory_item(to_inventory_entry()):
 		return false
 	queue_free()
 	return true
+
+
+## Works without the pickup being in the tree, so a saved pickup scene can be
+## instantiated just to read its item (e.g. the player's initial inventory).
+func to_inventory_entry() -> Dictionary:
+	return {
+		"id": item_id,
+		"name": display_name,
+		"scene": model_scene,
+		"icon": icon,
+		"display_size": display_size,
+		"mass": item_mass,
+		"state": item_state.duplicate(true),
+	}
+
+
+func apply_inventory_entry(entry: Dictionary) -> void:
+	item_id = StringName(entry.get("id", &""))
+	display_name = String(entry.get("name", "Item"))
+	model_scene = entry.get("scene") as PackedScene
+	icon = entry.get("icon") as Texture2D
+	display_size = float(entry.get("display_size", 0.55))
+	item_mass = float(entry.get("mass", 0.5))
+	item_state = entry.get("state", {})
 
 
 func interact(player: Player) -> bool:

@@ -110,9 +110,8 @@ light_projector = ExtResource("14_flash_cookie")
 light_size = 0.12
 shadow_enabled = true
 shadow_opacity = 0.65
-spot_range = 14.0
-spot_angle = 62.0
-spot_angle_attenuation = 0.3
+spot_range = 8.0
+spot_angle = 60.0
 
 [node name="PlayerGlow" type="OmniLight3D" parent="." unique_id=562905684]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)

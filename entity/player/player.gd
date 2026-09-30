@@ -6,6 +6,8 @@ class_name Player
 @export var aim_ray_prefab: PackedScene
 @export_range(0.0, 0.6, 0.05) var max_step_height := 0.35
 @export_range(-89.0, 89.0, 0.1) var initial_camera_pitch_degrees := 0.0
+## PickupItem scenes the player starts with, in hotbar order.
+@export var initial_items: Array[PackedScene] = []
 
 @onready var player_camera: ShakeableCamera = $Neck/ShakeableCamera
 @onready var debug_label: Label = $Neck/ShakeableCamera/DebugLabel
@@ -26,12 +28,10 @@ class_name Player
 @onready var hotbar: HotbarUI = $CanvasLayer/Hotbar
 
 var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
-var starter_pistol_icon = preload("res://asset/ui/starter_pistol_icon.png")
-var starter_pistol_scene = preload("res://entity/weapon/gun/StarterPistol.tscn")
 var pickup_item_scene = preload("res://entity/item/PickupItem.tscn")
 # Guns whose shot effects are pooled before gameplay starts.
 var prewarmed_gun_scenes: Array[PackedScene] = [
-	starter_pistol_scene,
+	preload("res://entity/weapon/gun/StarterPistol.tscn"),
 	preload("res://entity/weapon/gun/VectorSMG.tscn"),
 ]
 var interaction_outline_shader = preload("res://material/interaction_outline.gdshader")
@@ -120,15 +120,7 @@ func _ready():
 	last_dashed_timestamp = 0
 	for index in INVENTORY_SIZE:
 		inventory.append({})
-	inventory[0] = {
-		"id": &"starter_pistol",
-		"name": "Pistol",
-		"icon": starter_pistol_icon,
-		"scene": starter_pistol_scene,
-		"display_size": 0.55,
-		"mass": 1.0,
-		"state": {},
-	}
+	_fill_initial_inventory()
 	hotbar.update_slots(inventory, selected_item_slot)
 	var dialogue_manager: Node = Engine.get_singleton("DialogueManager")
 	dialogue_manager.dialogue_started.connect(_on_dialogue_started)
@@ -195,26 +187,22 @@ func can_use_held_item() -> bool:
 	return not dialogue_active and not preview_mode
 
 
-func add_inventory_item(
-	item_id: StringName,
-	display_name: String,
-	model_scene: PackedScene,
-	icon: Texture2D,
-	display_size := 0.55,
-	item_mass := 0.5,
-	item_state: Dictionary = {}
-) -> bool:
+func _fill_initial_inventory() -> void:
+	for index in mini(initial_items.size(), INVENTORY_SIZE):
+		if initial_items[index] == null:
+			continue
+		var pickup := initial_items[index].instantiate() as PickupItem
+		if pickup == null:
+			push_warning("Initial item %d is not a PickupItem scene" % index)
+			continue
+		inventory[index] = pickup.to_inventory_entry()
+		pickup.free()
+
+
+func add_inventory_item(entry: Dictionary) -> bool:
 	for slot_index in INVENTORY_SIZE:
 		if inventory[slot_index].is_empty():
-			inventory[slot_index] = {
-				"id": item_id,
-				"name": display_name,
-				"scene": model_scene,
-				"icon": icon,
-				"display_size": display_size,
-				"mass": item_mass,
-				"state": item_state,
-			}
+			inventory[slot_index] = entry
 			_select_item_slot(slot_index)
 			return true
 	hotbar.set_prompt("Inventory full")
@@ -226,13 +214,7 @@ func _throw_selected_item() -> void:
 	if item.is_empty():
 		return
 	var dropped := pickup_item_scene.instantiate() as PickupItem
-	dropped.item_id = StringName(item.get("id", &""))
-	dropped.display_name = String(item.get("name", "Item"))
-	dropped.model_scene = item.get("scene") as PackedScene
-	dropped.icon = item.get("icon") as Texture2D
-	dropped.display_size = float(item.get("display_size", 0.55))
-	dropped.item_mass = float(item.get("mass", 0.5))
-	dropped.item_state = item.get("state", {})
+	dropped.apply_inventory_entry(item)
 	get_parent().add_child(dropped)
 	var throw_direction := (-player_camera.camera.global_basis.z + Vector3.UP * 0.12).normalized()
 	dropped.global_basis = player_camera.camera.global_basis * _held_item_basis(item)
