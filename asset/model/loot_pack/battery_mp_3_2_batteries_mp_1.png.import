@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dqyai321e3g8x"
-path="res://.godot/imported/battery_mp_3_2_batteries_mp_1.png-124f34683481cdc6cf666fce3ff429d4.ctex"
+path.s3tc="res://.godot/imported/battery_mp_3_2_batteries_mp_1.png-124f34683481cdc6cf666fce3ff429d4.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5f6c4c82864d152a5880ffb41efb5c07"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://asset/model/loot_pack/battery_mp_3_2_batteries_mp_1.png"
-dest_files=["res://.godot/imported/battery_mp_3_2_batteries_mp_1.png-124f34683481cdc6cf666fce3ff429d4.ctex"]
+dest_files=["res://.godot/imported/battery_mp_3_2_batteries_mp_1.png-124f34683481cdc6cf666fce3ff429d4.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

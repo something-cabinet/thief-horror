@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://o1ccb8o7i0h1"
-path="res://.godot/imported/glass_bottle_2_glass_bottles_1.png-c7cd5eb9c71df68cdbff01be6a13c2bd.ctex"
+path.s3tc="res://.godot/imported/glass_bottle_2_glass_bottles_1.png-c7cd5eb9c71df68cdbff01be6a13c2bd.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2413989f28d722bf265afdb92f97dd54"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://asset/model/loot_pack/glass_bottle_2_glass_bottles_1.png"
-dest_files=["res://.godot/imported/glass_bottle_2_glass_bottles_1.png-c7cd5eb9c71df68cdbff01be6a13c2bd.ctex"]
+dest_files=["res://.godot/imported/glass_bottle_2_glass_bottles_1.png-c7cd5eb9c71df68cdbff01be6a13c2bd.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
