@@ -18,4 +18,13 @@ static func key_label(action: StringName) -> String:
 
 
 static func event_label(event: InputEvent) -> String:
-	return event.as_text().trim_suffix(" (Physical)")
+	var key := event as InputEventKey
+	if key == null:
+		return event.as_text()
+	if key.keycode != KEY_NONE:
+		return key.as_text_keycode()
+	if key.physical_keycode != KEY_NONE:
+		# Show the key as labelled on the player's active keyboard layout.
+		var mapped := DisplayServer.keyboard_get_keycode_from_physical(key.get_physical_keycode_with_modifiers())
+		return OS.get_keycode_string(mapped)
+	return key.as_text_key_label()

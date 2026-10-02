@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="2_en6wr"]
 [ext_resource type="Material" uid="uid://p2sj02iixgy2" path="res://material/grid_mat.tres" id="3_dof4j"]
 [ext_resource type="Texture2D" uid="uid://bloscd0h7gksy" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_23-128x128.png" id="5_3twv6"]
+[ext_resource type="PackedScene" uid="uid://dyuy67qosrd24" path="res://entity/item/key_item/FlashlightPickup.tscn" id="6_t7igh"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -135,3 +136,8 @@ transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 19, 
 operation = 2
 size = Vector3(3, 4, 3)
 material = SubResource("StandardMaterial3D_3twv6")
+
+[node name="ItemHolder" type="Node3D" parent="." unique_id=236467537]
+
+[node name="FlashlightPickup" parent="ItemHolder" unique_id=147254660 instance=ExtResource("6_t7igh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.730926, -5)

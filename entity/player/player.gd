@@ -424,6 +424,9 @@ func _held_item_basis(item: Dictionary) -> Basis:
 			rotation_degrees = Vector3(-8, 204, -4)
 		&"cigarettes", &"antique_radio":
 			rotation_degrees = Vector3(-12, 204, -4)
+		&"flashlight":
+			# The lens faces the model's +X; aim it forward, toward the crosshair.
+			rotation_degrees = Vector3(0, 95, 0)
 	var held_basis := Basis.from_euler(rotation_degrees * (PI / 180.0))
 	if item_id == &"notebook":
 		# Spin within the cover plane without flipping the front face away.
