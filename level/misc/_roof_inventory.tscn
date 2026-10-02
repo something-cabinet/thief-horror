@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://bii52hs5x8a0m" path="res://level/misc/_roof_inventory.gd" id="1"]
+
+[node name="RoofInventory" type="Node"]
+script = ExtResource("1")

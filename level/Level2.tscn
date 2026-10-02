@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://bh45nm4q62q0y"]
 
+[ext_resource type="Script" uid="uid://cq0q6dfeatq0w" path="res://level/level_secret_basement.gd" id="1_3twv6"]
 [ext_resource type="AudioStream" uid="uid://7c5wkufm1y7w" path="res://asset/bgm/ambience_d21_loop.ogg" id="1_xokmx"]
 [ext_resource type="PackedScene" uid="uid://7s75qf3um0h0" path="res://entity/player/Player.tscn" id="2_en6wr"]
 [ext_resource type="Material" uid="uid://p2sj02iixgy2" path="res://material/grid_mat.tres" id="3_dof4j"]
@@ -44,7 +45,9 @@ uv1_scale = Vector3(0.25, 0.25, 0.25)
 uv1_triplanar = true
 texture_filter = 0
 
-[node name="Level2" type="Node3D" unique_id=11353335]
+[node name="Level2" type="Node3D" unique_id=11353335 node_paths=PackedStringArray("map_ceiling")]
+script = ExtResource("1_3twv6")
+map_ceiling = NodePath("CSGCombiner3D/Ceiling")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1493963791]
 environment = SubResource("Environment_3twv6")

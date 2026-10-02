@@ -31,6 +31,7 @@ fov = 90.0
 near = 0.02
 
 [node name="PS1Depth" type="MeshInstance3D" parent="Camera3D"]
+cast_shadow = 0
 extra_cull_margin = 16384.0
 mesh = SubResource("QuadMesh_ps1_depth")
 script = ExtResource("3_ps1_depth_script")
