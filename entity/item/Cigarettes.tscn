@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://entity/item/Item.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://dchvdhkahylg6" path="res://asset/model/items/icons/cigs_carton.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://p6566vvmagro" path="res://asset/model/items/models/cigs_carton.glb" id="3_model"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cigarettes"]
+margin = 0.005
+size = Vector3(0.046849, 0.246739, 0.48)
+
+[node name="Cigarettes" instance=ExtResource("1_base")]
+mass = 0.2
+item_id = &"cigarettes"
+display_name = "Cigarettes"
+icon = ExtResource("2_icon")
+
+[node name="Collision" parent="." index="0"]
+shape = SubResource("BoxShape3D_cigarettes")
+
+[node name="Model" parent="." index="1"]
+transform = Transform3D(0.450214, 0, 0, 0, 0.450214, 0, 0, 0, 0.450214, -0.000246, -0.019194, -0.078168)
+
+[node name="Mesh" parent="Model" instance=ExtResource("3_model")]

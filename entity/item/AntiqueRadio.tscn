@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://entity/item/Item.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://cyau772t8mu28" path="res://asset/model/items/icons/ps1_antique_radio.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://pphy7l5f3dwq" path="res://asset/model/items/models/ps1_antique_radio.glb" id="3_model"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_antique_radio"]
+margin = 0.005
+size = Vector3(0.169659, 0.62, 0.392812)
+
+[node name="AntiqueRadio" instance=ExtResource("1_base")]
+mass = 3.0
+item_id = &"antique_radio"
+display_name = "Antique Radio"
+icon = ExtResource("2_icon")
+
+[node name="Collision" parent="." index="0"]
+shape = SubResource("BoxShape3D_antique_radio")
+
+[node name="Model" parent="." index="1"]
+transform = Transform3D(0.263246, 0, 0, 0, 0.263246, 0, 0, 0, 0.263246, 0, -0.311264, -0.00073)
+
+[node name="Mesh" parent="Model" instance=ExtResource("3_model")]

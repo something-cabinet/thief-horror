@@ -589,10 +589,10 @@ func _verify_interaction_line_of_sight() -> void:
 
 
 func _verify_runtime_loot_interaction(map: Node3D) -> void:
-	var drawer_item: PickupItem
-	var shelf_item: PickupItem
+	var drawer_item: Item
+	var shelf_item: Item
 	for child: Node in get_tree().get_nodes_in_group("runtime_loot"):
-		var item := child as PickupItem
+		var item := child as Item
 		if item == null or not map.is_ancestor_of(item):
 			continue
 		var socket := item.get_parent() as LootSocket
@@ -630,7 +630,7 @@ func _verify_runtime_loot_interaction(map: Node3D) -> void:
 
 
 func _find_drawer_loot_ray_start(
-	item: PickupItem,
+	item: Item,
 	drawer: SlidingInteractable
 ) -> Vector3:
 	var target := item.global_position
@@ -649,7 +649,7 @@ func _find_drawer_loot_ray_start(
 	return Vector3.INF
 
 
-func _find_runtime_loot_ray_start(item: PickupItem) -> Vector3:
+func _find_runtime_loot_ray_start(item: Item) -> Vector3:
 	var target := item.global_position
 	var results: Array[String] = []
 	var directions := [

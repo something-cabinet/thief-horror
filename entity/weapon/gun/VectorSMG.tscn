@@ -4,7 +4,11 @@
 [ext_resource type="Resource" uid="uid://dvpqi7d2j8ui7" path="res://entity/weapon/gun/data/vector_smg.tres" id="2_frjn6"]
 [ext_resource type="PackedScene" uid="uid://d4jbfgjx5ny48" path="res://entity/weapon/gun/projectiles/VectorSMGPrimaryHitscan.tscn" id="3_by888"]
 [ext_resource type="PackedScene" uid="uid://d3ulx8v6ei5uu" path="res://entity/weapon/gun/vfx/MuzzleFlash.tscn" id="5_3u48o"]
+[ext_resource type="PhysicsMaterial" path="res://entity/item/item_physics_material.tres" id="9_physics"]
 [ext_resource type="Texture2D" uid="uid://dgavm2o1xjvec" path="res://asset/model/uzi_gun/UZI_Material.png" id="5_xqepb"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gun"]
+size = Vector3(0.2, 0.35, 0.65)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kdnoa"]
 resource_name = "Material.014"
@@ -58,7 +62,7 @@ loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent/ModelParent2:position")
+tracks/0/path = NodePath("Model/ModelParent2:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -70,7 +74,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:rotation")
+tracks/1/path = NodePath("Model/ModelParent2:rotation")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -82,7 +86,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
+tracks/2/path = NodePath("Model:rotation")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -99,7 +103,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent/ModelParent2:position")
+tracks/0/path = NodePath("Model/ModelParent2:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -111,7 +115,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:rotation")
+tracks/1/path = NodePath("Model/ModelParent2:rotation")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -123,7 +127,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
+tracks/2/path = NodePath("Model:rotation")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -162,20 +166,32 @@ states/primary_attack/position = Vector2(322, -24)
 transitions = ["Start", "idle", SubResource("AnimationNodeStateMachineTransition_0ci4w"), "idle", "primary_attack", SubResource("AnimationNodeStateMachineTransition_h3hq2"), "primary_attack", "idle", SubResource("AnimationNodeStateMachineTransition_gvs8i")]
 graph_offset = Vector2(-214, -53)
 
-[node name="VectorSMG" type="Node3D"]
+[node name="VectorSMG" type="RigidBody3D"]
+collision_layer = 8
+collision_mask = 9
+mass = 1.5
+physics_material_override = ExtResource("9_physics")
+continuous_cd = true
+linear_damp = 0.65
+angular_damp = 0.9
 script = ExtResource("1_2sbr0")
 data = ExtResource("2_frjn6")
 primary_projectile = ExtResource("3_by888")
+item_id = &"vector_smg"
+display_name = "Vector SMG"
 fit_to_hand = false
 hand_transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, -0.169, 0.12, 0.365)
 
-[node name="ModelParent" type="Node3D" parent="."]
+[node name="Collision" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_gun")
+
+[node name="Model" type="Node3D" parent="."]
 transform = Transform3D(-1, 0, 2.53518e-06, 0, 1, 0, -2.53518e-06, 0, -1, 0, 0, 0)
 
-[node name="ModelParent2" type="Node3D" parent="ModelParent"]
+[node name="ModelParent2" type="Node3D" parent="Model"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.00914755, 0)
 
-[node name="Uzi" type="MeshInstance3D" parent="ModelParent/ModelParent2"]
+[node name="Uzi" type="MeshInstance3D" parent="Model/ModelParent2"]
 transform = Transform3D(-5, 4.37114e-07, 1.91068e-14, 0, -2.18557e-07, 5, 4.37114e-07, 5, 2.18557e-07, 7.92861e-08, -0.0145684, 0.0312743)
 mesh = SubResource("ArrayMesh_aglyp")
 skeleton = NodePath("")

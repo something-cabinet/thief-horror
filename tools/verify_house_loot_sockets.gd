@@ -1,8 +1,6 @@
 extends SceneTree
 
 const HOUSE_SCENE := preload("res://level/AbandonedHouseMap.tscn")
-const PICKUP_ITEM_SCENE := preload("res://entity/item/PickupItem.tscn")
-const PHOTO_FRAME_SCENE := preload("res://asset/model/loot_review/photo_frame_mp_1.glb")
 const EXPECTED_COUNTS := {
 	"drawer": 18,
 	"fridge": 4,
@@ -131,9 +129,9 @@ func _verify() -> void:
 	if empty_shelves == 0 or double_shelves == 0:
 		failures.append("shelf loot distribution is still uniform")
 	for child: Node in runtime_loot:
-		var item := child as PickupItem
+		var item := child as Item
 		if item == null:
-			failures.append("%s is not a PickupItem" % child.get_path())
+			failures.append("%s is not an Item" % child.get_path())
 			continue
 		var socket := item.get_parent() as LootSocket
 		if socket == null:
@@ -143,11 +141,11 @@ func _verify() -> void:
 		runtime_item_ids[item.item_id] = int(runtime_item_ids.get(item.item_id, 0)) + 1
 		if item.item_id == &"gold_bar" and socket.socket_type == "table":
 			failures.append("gold bar spawned in plain sight on a table")
-		var item_size: Vector3 = item.get("actual_normalized_size")
+		var item_size: Vector3 = item.get("item_size")
 		var grounded_y := item.position.y - item_size.y * 0.5
 		if (
 			socket.socket_type not in ["cabinet", "wardrobe", "table", "shelf", "fridge"]
-			and absf(grounded_y - PickupItem.SUPPORT_CLEARANCE) > 0.001
+			and absf(grounded_y - Item.SUPPORT_CLEARANCE) > 0.001
 		):
 			failures.append("%s floats %.3f above its socket" % [
 				item.get_path(), grounded_y,
@@ -206,7 +204,7 @@ func _verify() -> void:
 	await physics_frame
 	await physics_frame
 	for child: Node in runtime_loot:
-		var item := child as PickupItem
+		var item := child as Item
 		if item == null:
 			continue
 		var socket := item.get_parent() as LootSocket
@@ -225,8 +223,7 @@ func _verify() -> void:
 		await physics_frame
 
 	if not runtime_loot.is_empty():
-		_verify_outline(runtime_loot[0] as PickupItem, failures)
-	_verify_fitted_scale_round_trip(failures)
+		_verify_outline(runtime_loot[0] as Item, failures)
 
 	if not failures.is_empty():
 		for failure in failures:
@@ -284,32 +281,6 @@ func _verify_refrigerator_collision(house: Node, failures: Array[String]) -> voi
 		failures.append("refrigerator cavity is blocked by non-exact collision")
 
 
-func _verify_fitted_scale_round_trip(failures: Array[String]) -> void:
-	var source := PICKUP_ITEM_SCENE.instantiate() as PickupItem
-	source.item_id = &"photo_frame"
-	source.display_name = "Photo Frame"
-	source.model_scene = PHOTO_FRAME_SCENE
-	source.display_size = 1.0
-	source.fit_size_limit = Vector3(0.24, 0.20, 0.24)
-	root.add_child(source)
-	var fitted_size := source.actual_normalized_size
-	var stored_display_size := source.display_size
-
-	var dropped := PICKUP_ITEM_SCENE.instantiate() as PickupItem
-	dropped.item_id = source.item_id
-	dropped.display_name = source.display_name
-	dropped.model_scene = source.model_scene
-	dropped.display_size = stored_display_size
-	root.add_child(dropped)
-	if not dropped.actual_normalized_size.is_equal_approx(fitted_size):
-		failures.append(
-			"fitted photo frame changes size after inventory throw: %s -> %s"
-			% [fitted_size, dropped.actual_normalized_size]
-		)
-	source.free()
-	dropped.free()
-
-
 func _set_socket_open_state(socket: LootSocket, open: bool) -> Array[MovingInteractable]:
 	var result: Array[MovingInteractable] = []
 	if socket == null:
@@ -326,7 +297,7 @@ func _set_socket_open_state(socket: LootSocket, open: bool) -> Array[MovingInter
 	return result
 
 
-func _has_clear_pickup_ray(item: PickupItem, house: Node3D) -> bool:
+func _has_clear_pickup_ray(item: Item, house: Node3D) -> bool:
 	var target := item.global_position
 	var directions := [
 		Vector3.FORWARD,
@@ -348,12 +319,12 @@ func _has_clear_pickup_ray(item: PickupItem, house: Node3D) -> bool:
 	return false
 
 
-func _verify_outline(item: PickupItem, failures: Array[String]) -> void:
+func _verify_outline(item: Item, failures: Array[String]) -> void:
 	item.set_highlighted(true)
 	var meshes: Array[MeshInstance3D] = []
-	if item.model_instance is MeshInstance3D:
-		meshes.append(item.model_instance as MeshInstance3D)
-	for child: Node in item.model_instance.find_children("*", "MeshInstance3D", true, false):
+	if item.model is MeshInstance3D:
+		meshes.append(item.model as MeshInstance3D)
+	for child: Node in item.model.find_children("*", "MeshInstance3D", true, false):
 		meshes.append(child as MeshInstance3D)
 	if meshes.is_empty():
 		failures.append("%s has no highlightable mesh" % item.get_path())
@@ -364,19 +335,19 @@ func _verify_outline(item: PickupItem, failures: Array[String]) -> void:
 	item.set_highlighted(false)
 
 
-func _has_recorded_world_support(item: PickupItem) -> bool:
+func _has_recorded_world_support(item: Item) -> bool:
 	if not item.has_meta("ground_support_y"):
 		return absf(
 			item.position.y
-			- item.actual_normalized_size.y * 0.5
-			- PickupItem.SUPPORT_CLEARANCE
+			- item.item_size.y * 0.5
+			- Item.SUPPORT_CLEARANCE
 		) <= 0.001
-	var bottom := item.global_position.y - item.actual_normalized_size.y * 0.5
+	var bottom := item.global_position.y - item.item_size.y * 0.5
 	return absf(bottom - float(item.get_meta("ground_support_y")) - 0.003) <= 0.002
 
 
 func _verify_mesh_support(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	failures: Array[String]
 ) -> void:
@@ -384,8 +355,8 @@ func _verify_mesh_support(
 	if is_nan(support_y):
 		failures.append("%s is not fully supported by one source-mesh surface" % item.get_path())
 		return
-	var bottom := item.global_position.y - item.actual_normalized_size.y * 0.5
-	var expected_bottom := support_y + PickupItem.SUPPORT_CLEARANCE
+	var bottom := item.global_position.y - item.item_size.y * 0.5
+	var expected_bottom := support_y + Item.SUPPORT_CLEARANCE
 	if absf(bottom - expected_bottom) > 0.002:
 		failures.append("%s is %.3f from its actual source-mesh support" % [
 			item.get_path(), bottom - expected_bottom,

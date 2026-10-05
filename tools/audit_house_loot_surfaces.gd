@@ -56,14 +56,14 @@ func _audit() -> void:
 				_print_upward_centers(mesh_child as MeshInstance3D)
 		if moving.display_name == "drawer":
 			var socket := moving.find_child("LootSocket*", true, false) as LootSocket
-			var item := moving.find_child("Loot_*", true, false) as PickupItem
+			var item := moving.find_child("Loot_*", true, false) as Item
 			if socket != null and item != null:
 				print("[DRAWER_LOOT] drawer=%s socket=%s item=%s item_center=%s item_bottom=%.3f" % [
 					moving.name,
 					socket.global_position,
 					item.display_name,
 					item.global_position,
-					item.global_position.y - item.actual_normalized_size.y * 0.5,
+					item.global_position.y - item.item_size.y * 0.5,
 				])
 
 	var socket_counts := {}

@@ -1,4 +1,4 @@
-extends HeldItem
+extends Item
 class_name Gun
 
 const BULLET_SPAWN_POS_VARIATION = 10
@@ -16,6 +16,7 @@ const BULLET_SPAWN_POS_VARIATION = 10
 var primary_projectile_color := Color.WHITE
 
 func _ready() -> void:
+    super()
     primary_projectile_color = get_projectile_color(primary_projectile)
 
 func _on_equipped() -> void:

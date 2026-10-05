@@ -1,7 +1,7 @@
 extends RefCounted
 class_name HouseLootSpawner
 
-const PICKUP_ITEM_SCENE := preload("res://entity/item/PickupItem.tscn")
+const ITEM_SCENE := preload("res://entity/item/Item.tscn")
 const ACCESS_TEST_DISTANCE := 1.2
 const ACCESS_TEST_EYE_HEIGHT := 0.45
 const ACCESS_PLACEMENT_ATTEMPTS := 16
@@ -502,7 +502,7 @@ static func spawn_for_sockets(
 		var socket_spawned_count := 0
 		for item_index in item_count:
 			var choice_cursor := int(choice_cursors[socket.socket_type])
-			var item: PickupItem
+			var item: Item
 			var accepted_choice_cursor := choice_cursor
 			for choice_offset in choices.size() * 2:
 				var candidate_cursor := choice_cursor + choice_offset
@@ -544,30 +544,30 @@ static func _instantiate_loot_item(
 	socket: LootSocket,
 	random: RandomNumberGenerator,
 	spawned_count: int
-) -> PickupItem:
+) -> Item:
 	var definition: Dictionary = LOOT_DEFINITIONS[loot_id]
-	var item := PICKUP_ITEM_SCENE.instantiate() as PickupItem
+	var item := ITEM_SCENE.instantiate() as Item
 	item.name = "Loot_%s_%03d" % [String(loot_id).capitalize(), spawned_count]
 	item.item_id = loot_id
 	item.display_name = String(definition.name)
-	item.model_scene = _choose_model(definition, random)
 	item.icon = load(String(definition.icon_path)) as Texture2D
-	item.display_size = float(definition.get("display_size", 1.0))
-	item.fit_size_limit = socket.max_item_size
-	if socket.socket_type in ["cabinet", "wardrobe", "fridge"]:
-		var fit_ratio := _storage_fit_ratio(socket.socket_type)
-		item.fit_size_limit.x *= fit_ratio
-		item.fit_size_limit.z *= fit_ratio
-	item.item_mass = float(definition.mass)
+	item.mass = float(definition.mass)
+	item.get_node("Model").add_child(_choose_model(definition, random).instantiate())
 	item.freeze = true
 	item.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	item.rotation.y = random.randf_range(-PI, PI)
 	socket.add_child(item)
+	var fit_size_limit := socket.max_item_size
+	if socket.socket_type in ["cabinet", "wardrobe", "fridge"]:
+		var fit_ratio := _storage_fit_ratio(socket.socket_type)
+		fit_size_limit.x *= fit_ratio
+		fit_size_limit.z *= fit_ratio
+	item.fit_model(float(definition.get("display_size", 1.0)), fit_size_limit)
 	return item
 
 
 static func _place_item_for_socket(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator,
 	item_index: int,
@@ -631,7 +631,7 @@ static func _ordered_loot_sockets(sockets: Array, session_seed: int) -> Array:
 
 
 static func _place_shelf_item(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator,
 	require_clear_approach: bool
@@ -651,7 +651,7 @@ static func _place_shelf_item(
 
 
 static func _place_storage_item(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator,
 	item_index: int,
@@ -731,7 +731,7 @@ static func _storage_fit_ratio(socket_type: String) -> float:
 
 
 static func _bias_away_from_shelf_center(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator
 ) -> void:
@@ -750,10 +750,10 @@ static func _bias_away_from_shelf_center(
 		)
 
 
-static func _overlaps_socket_loot(item: PickupItem, socket: LootSocket) -> bool:
+static func _overlaps_socket_loot(item: Item, socket: LootSocket) -> bool:
 	var footprint := _item_footprint(item)
 	for child: Node in socket.get_children():
-		var other := child as PickupItem
+		var other := child as Item
 		if other == null or other == item:
 			continue
 		var other_footprint := _item_footprint(other)
@@ -767,18 +767,18 @@ static func _overlaps_socket_loot(item: PickupItem, socket: LootSocket) -> bool:
 	return false
 
 
-static func _item_footprint(item: PickupItem) -> Vector2:
+static func _item_footprint(item: Item) -> Vector2:
 	var yaw := item.rotation.y
 	return Vector2(
-		absf(cos(yaw)) * item.actual_normalized_size.x
-		+ absf(sin(yaw)) * item.actual_normalized_size.z,
-		absf(sin(yaw)) * item.actual_normalized_size.x
-		+ absf(cos(yaw)) * item.actual_normalized_size.z
+		absf(cos(yaw)) * item.item_size.x
+		+ absf(sin(yaw)) * item.item_size.z,
+		absf(sin(yaw)) * item.item_size.x
+		+ absf(cos(yaw)) * item.item_size.z
 	)
 
 
 static func _bias_toward_drawer_opening(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator
 ) -> void:
@@ -789,12 +789,12 @@ static func _bias_toward_drawer_opening(
 	var outward_local := (drawer.global_basis.inverse() * outward_world).normalized()
 	var yaw := item.rotation.y
 	var footprint_x := (
-		absf(cos(yaw)) * item.actual_normalized_size.x
-		+ absf(sin(yaw)) * item.actual_normalized_size.z
+		absf(cos(yaw)) * item.item_size.x
+		+ absf(sin(yaw)) * item.item_size.z
 	)
 	var footprint_z := (
-		absf(sin(yaw)) * item.actual_normalized_size.x
-		+ absf(cos(yaw)) * item.actual_normalized_size.z
+		absf(sin(yaw)) * item.item_size.x
+		+ absf(cos(yaw)) * item.item_size.z
 	)
 	if absf(outward_local.x) >= absf(outward_local.z):
 		var x_room := maxf(0.0, socket.placement_size.x - footprint_x) * 0.42
@@ -810,8 +810,8 @@ static func _bias_toward_drawer_opening(
 		)
 
 
-static func _ground_to_world_support(item: PickupItem) -> void:
-	var visible_bottom := item.global_position.y - item.actual_normalized_size.y * 0.5
+static func _ground_to_world_support(item: Item) -> void:
+	var visible_bottom := item.global_position.y - item.item_size.y * 0.5
 	var ray_start := Vector3(
 		item.global_position.x,
 		visible_bottom + 0.06,
@@ -835,7 +835,7 @@ static func _ground_to_world_support(item: PickupItem) -> void:
 
 
 static func _find_upward_support(
-	item: PickupItem,
+	item: Item,
 	ray_start: Vector3,
 	ray_end: Vector3,
 	excluded_rids: Array[RID]
@@ -861,7 +861,7 @@ static func _find_upward_support(
 
 
 static func _place_table_item(
-	item: PickupItem,
+	item: Item,
 	socket: LootSocket,
 	random: RandomNumberGenerator,
 	require_clear_approach: bool
@@ -878,21 +878,21 @@ static func _place_table_item(
 	return false
 
 
-static func _ground_to_mesh_support(item: PickupItem, socket: LootSocket) -> bool:
+static func _ground_to_mesh_support(item: Item, socket: LootSocket) -> bool:
 	var support_y := find_item_mesh_support_y(socket, item)
 	if is_nan(support_y):
 		return false
-	var visible_bottom := item.global_position.y - item.actual_normalized_size.y * 0.5
-	item.global_position.y += support_y + PickupItem.SUPPORT_CLEARANCE - visible_bottom
+	var visible_bottom := item.global_position.y - item.item_size.y * 0.5
+	item.global_position.y += support_y + Item.SUPPORT_CLEARANCE - visible_bottom
 	item.set_meta("mesh_support_y", support_y)
 	return true
 
 
-static func find_item_mesh_support_y(socket: LootSocket, item: PickupItem) -> float:
+static func find_item_mesh_support_y(socket: LootSocket, item: Item) -> float:
 	var axis_x := item.global_basis.x.normalized()
 	var axis_z := item.global_basis.z.normalized()
-	var half_x := item.actual_normalized_size.x * 0.38
-	var half_z := item.actual_normalized_size.z * 0.38
+	var half_x := item.item_size.x * 0.38
+	var half_z := item.item_size.z * 0.38
 	var offsets := [
 		Vector3.ZERO,
 		axis_x * half_x + axis_z * half_z,
@@ -915,7 +915,7 @@ static func find_item_mesh_support_y(socket: LootSocket, item: PickupItem) -> fl
 	return highest_y
 
 
-static func is_item_volume_clear(item: PickupItem) -> bool:
+static func is_item_volume_clear(item: Item) -> bool:
 	if not item.is_inside_tree():
 		return false
 	# Test the occupied core rather than only the center point. The shorter Y
@@ -923,9 +923,9 @@ static func is_item_volume_clear(item: PickupItem) -> bool:
 	# back, trim, and closed-door penetration.
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(
-		maxf(0.01, item.actual_normalized_size.x * 0.90),
-		maxf(0.002, item.actual_normalized_size.y * 0.72),
-		maxf(0.01, item.actual_normalized_size.z * 0.90)
+		maxf(0.01, item.item_size.x * 0.90),
+		maxf(0.002, item.item_size.y * 0.72),
+		maxf(0.01, item.item_size.z * 0.90)
 	)
 	shape.margin = 0.001
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -988,7 +988,7 @@ static func find_mesh_support_y(socket: LootSocket, world_position: Vector3) -> 
 	return best_y
 
 
-static func _has_clear_world_approach(item: PickupItem) -> bool:
+static func _has_clear_world_approach(item: Item) -> bool:
 	if not item.is_inside_tree():
 		return false
 	var target := item.global_position

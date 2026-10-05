@@ -1,12 +1,15 @@
-extends HeldItem
+extends Item
 
-@onready var glow: OmniLight3D = $Glow
+@export var lit := false
+
+@onready var glow: OmniLight3D = $Model/Glow
+
+
+func _ready() -> void:
+	super()
+	glow.visible = lit
 
 
 func _on_primary_use() -> void:
-	state["lit"] = not state.get("lit", false)
-	_on_state_applied()
-
-
-func _on_state_applied() -> void:
-	glow.visible = state.get("lit", false)
+	lit = not lit
+	glow.visible = lit

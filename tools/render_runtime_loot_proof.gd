@@ -32,10 +32,10 @@ func _render_proof() -> void:
 	await get_tree().process_frame
 	await get_tree().physics_frame
 
-	var target_item: PickupItem
+	var target_item: Item
 	var target_socket: LootSocket
 	for child: Node in get_tree().get_nodes_in_group("runtime_loot"):
-		var item := child as PickupItem
+		var item := child as Item
 		if item == null or not house.is_ancestor_of(item):
 			continue
 		var socket := item.get_parent() as LootSocket
@@ -96,7 +96,7 @@ func _render_proof() -> void:
 
 func _find_pickup_view(
 	player: Player,
-	item: PickupItem,
+	item: Item,
 	drawer: SlidingInteractable
 ) -> Vector3:
 	var target := item.global_position

@@ -6,7 +6,7 @@ class_name Player
 @export var aim_ray_prefab: PackedScene
 @export_range(0.0, 0.6, 0.05) var max_step_height := 0.35
 @export_range(-89.0, 89.0, 0.1) var initial_camera_pitch_degrees := 0.0
-## PickupItem scenes the player starts with, in hotbar order.
+## Item scenes the player starts with, in hotbar order.
 @export var initial_items: Array[PackedScene] = []
 
 @onready var player_camera: ShakeableCamera = $Neck/ShakeableCamera
@@ -28,7 +28,6 @@ class_name Player
 @onready var hotbar: HotbarUI = $CanvasLayer/Hotbar
 
 var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
-var pickup_item_scene = preload("res://entity/item/PickupItem.tscn")
 # Guns whose shot effects are pooled before gameplay starts.
 var prewarmed_gun_scenes: Array[PackedScene] = [
 	preload("res://entity/weapon/gun/StarterPistol.tscn"),
@@ -96,7 +95,9 @@ var landing_sfx_armed := false
 var is_step_traversing := false
 var step_debug_reason := "idle"
 var last_stuck_log_msec := 0
-var inventory: Array[Dictionary] = []
+## Items the player carries; null for an empty slot. Only the selected item
+## is in the scene tree, as a child of held_item_pivot.
+var inventory: Array[Item] = []
 var selected_item_slot := 0
 var focused_interactable: Node3D
 var dev_probe_message := ""
@@ -112,6 +113,14 @@ var preview_mode := false
 var footstep_distance_traveled := 0.525
 var next_footstep_distance := 1.05
 
+func _notification(what: int) -> void:
+	# Stored items are outside the scene tree, so nothing else frees them.
+	if what == NOTIFICATION_PREDELETE:
+		for item in inventory:
+			if item != null and not item.is_inside_tree():
+				item.free()
+
+
 func _ready():
 	# Editor-only placeholder capsule; hide it in-game.
 	$MeshInstance3D.visible = false
@@ -124,7 +133,7 @@ func _ready():
 	held_item_pivot_original_pos = held_item_pivot.position
 	last_dashed_timestamp = 0
 	for index in INVENTORY_SIZE:
-		inventory.append({})
+		inventory.append(null)
 	_fill_initial_inventory()
 	hotbar.update_slots(inventory, selected_item_slot)
 	var dialogue_manager: Node = Engine.get_singleton("DialogueManager")
@@ -196,18 +205,19 @@ func _fill_initial_inventory() -> void:
 	for index in mini(initial_items.size(), INVENTORY_SIZE):
 		if initial_items[index] == null:
 			continue
-		var pickup := initial_items[index].instantiate() as PickupItem
-		if pickup == null:
-			push_warning("Initial item %d is not a PickupItem scene" % index)
+		var item := initial_items[index].instantiate() as Item
+		if item == null:
+			push_warning("Initial item %d is not an Item scene" % index)
 			continue
-		inventory[index] = pickup.to_inventory_entry()
-		pickup.free()
+		inventory[index] = item
 
 
-func add_inventory_item(entry: Dictionary) -> bool:
+func add_inventory_item(item: Item) -> bool:
 	for slot_index in INVENTORY_SIZE:
-		if inventory[slot_index].is_empty():
-			inventory[slot_index] = entry
+		if inventory[slot_index] == null:
+			if item.get_parent() != null:
+				item.get_parent().remove_child(item)
+			inventory[slot_index] = item
 			_select_item_slot(slot_index)
 			return true
 	hotbar.set_prompt("Inventory full")
@@ -215,21 +225,21 @@ func add_inventory_item(entry: Dictionary) -> bool:
 
 
 func _throw_selected_item() -> void:
-	var item := inventory[selected_item_slot]
-	if item.is_empty():
+	var dropped := inventory[selected_item_slot]
+	if dropped == null:
 		return
-	var dropped := pickup_item_scene.instantiate() as PickupItem
-	dropped.apply_inventory_entry(item)
+	inventory[selected_item_slot] = null
+	dropped.get_parent().remove_child(dropped)
 	get_parent().add_child(dropped)
+	dropped.release()
 	var throw_direction := (-player_camera.camera.global_basis.z + Vector3.UP * 0.12).normalized()
-	dropped.global_basis = player_camera.camera.global_basis * _held_item_basis(item)
+	dropped.global_basis = player_camera.camera.global_basis * _held_item_basis(dropped.item_id)
 	dropped.global_position = (
 		player_camera.camera.global_position
 		+ throw_direction * THROW_SPAWN_DISTANCE
 	)
 	dropped.linear_velocity = velocity + throw_direction * THROW_SPEED
 	dropped.angular_velocity = player_camera.camera.global_basis * Vector3(5.0, 3.0, -4.0)
-	inventory[selected_item_slot] = {}
 	hotbar.update_slots(inventory, selected_item_slot)
 	_refresh_held_item()
 
@@ -344,7 +354,11 @@ func _try_interact_focused() -> void:
 		return
 	var target := focused_interactable
 	target.call("interact", self)
-	if not is_instance_valid(target) or target.is_queued_for_deletion():
+	if (
+		not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or (target is Item and (target as Item).player != null)
+	):
 		_set_focused_interactable(null)
 	else:
 		_refresh_interaction_prompt()
@@ -381,37 +395,31 @@ func _select_item_slot(slot_index: int) -> void:
 
 func _refresh_held_item() -> void:
 	for child in held_item_pivot.get_children():
-		child.free()
+		held_item_pivot.remove_child(child)
 	var item := inventory[selected_item_slot]
-	if item.is_empty():
+	if item == null:
 		return
-	var model_scene := item.get("scene") as PackedScene
-	if model_scene == null:
+	held_item_pivot.add_child(item)
+	item.equip(self)
+	if not item.fit_to_hand:
+		item.transform = item.hand_transform
 		return
-	var holder := Node3D.new()
-	held_item_pivot.add_child(holder)
-	var model := model_scene.instantiate() as Node3D
-	holder.add_child(model)
-	var held_item := model as HeldItem
-	if held_item != null:
-		if not item.has("state"):
-			item["state"] = {}
-		held_item.equip(self, item["state"])
-		if not held_item.fit_to_hand:
-			holder.transform = held_item.hand_transform
-			return
-	holder.basis = _held_item_basis(item)
-	var bounds := _calculate_model_bounds(model)
+	item.transform = Transform3D.IDENTITY
+	var bounds := Item.calculate_mesh_bounds(item.model, item)
 	var longest_side := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
 	if longest_side <= 0.0001:
 		return
-	var scale_factor := _held_item_display_size(item) / longest_side
-	model.scale = Vector3.ONE * scale_factor
-	model.position = - bounds.get_center() * scale_factor
+	var scale_factor := _held_item_display_size(item.item_id) / longest_side
+	item.transform = Transform3D(
+		_held_item_basis(item.item_id),
+		Vector3.ZERO
+	) * Transform3D(
+		Basis.from_scale(Vector3.ONE * scale_factor),
+		-bounds.get_center() * scale_factor
+	)
 
 
-func _held_item_basis(item: Dictionary) -> Basis:
-	var item_id := StringName(item.get("id", &""))
+func _held_item_basis(item_id: StringName) -> Basis:
 	var rotation_degrees := Vector3(-12, 24, -4)
 	match item_id:
 		&"notebook", &"cash", &"book":
@@ -434,8 +442,8 @@ func _held_item_basis(item: Dictionary) -> Basis:
 	return held_basis
 
 
-func _held_item_display_size(item: Dictionary) -> float:
-	match StringName(item.get("id", &"")):
+func _held_item_display_size(item_id: StringName) -> float:
+	match item_id:
 		&"coins":
 			return 0.20
 		&"cash", &"gold_bar":
@@ -447,32 +455,6 @@ func _held_item_display_size(item: Dictionary) -> float:
 		_:
 			return 0.34
 
-
-func _calculate_model_bounds(root: Node3D) -> AABB:
-	var result := AABB()
-	var has_point := false
-	var mesh_instances: Array[MeshInstance3D] = []
-	if root is MeshInstance3D:
-		mesh_instances.append(root as MeshInstance3D)
-	for child: Node in root.find_children("*", "MeshInstance3D", true, false):
-		mesh_instances.append(child as MeshInstance3D)
-	var inverse_root := root.global_transform.affine_inverse()
-	for mesh_instance in mesh_instances:
-		if mesh_instance.mesh == null:
-			continue
-		var local_transform := inverse_root * mesh_instance.global_transform
-		var mesh_bounds := mesh_instance.mesh.get_aabb()
-		var bounds_end := mesh_bounds.position + mesh_bounds.size
-		for x in [mesh_bounds.position.x, bounds_end.x]:
-			for y in [mesh_bounds.position.y, bounds_end.y]:
-				for z in [mesh_bounds.position.z, bounds_end.z]:
-					var point := local_transform * Vector3(x, y, z)
-					if not has_point:
-						result = AABB(point, Vector3.ZERO)
-						has_point = true
-					else:
-						result = result.expand(point)
-	return result
 
 func _physics_process(delta):
 	if dialogue_active:
@@ -744,7 +726,8 @@ func show_debug_label():
 	debug_label.text += "\nIs dashing: {0} | Is crouching: {1} | Is sprinting: {2}".format([is_dashing, is_crouching, is_sprinting])
 	debug_label.text += "\nAir jumps left: {0}".format([max_air_jump - current_air_jump_count])
 	debug_label.text += "\nCoyote jump: {0}".format([can_coyote_jump])
-	var selected_name := String(inventory[selected_item_slot].get("name", "Empty"))
+	var selected_item := inventory[selected_item_slot]
+	var selected_name := selected_item.display_name if selected_item != null else "Empty"
 	debug_label.text += "\nSelected item: {0}".format([selected_name])
 
 func jump(multiplier = 1.0):

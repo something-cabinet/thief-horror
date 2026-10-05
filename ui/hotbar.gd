@@ -13,13 +13,13 @@ func _ready() -> void:
 	_build_ui()
 
 
-func update_slots(items: Array[Dictionary], selected_index: int) -> void:
+func update_slots(items: Array[Item], selected_index: int) -> void:
 	if slot_panels.is_empty():
 		return
 	for index in SLOT_COUNT:
-		var item: Dictionary = items[index] if index < items.size() else {}
-		slot_icons[index].texture = item.get("icon") as Texture2D
-		slot_icons[index].visible = not item.is_empty()
+		var item: Item = items[index] if index < items.size() else null
+		slot_icons[index].texture = item.icon if item != null else null
+		slot_icons[index].visible = item != null
 		slot_panels[index].z_index = 1 if index == selected_index else 0
 		slot_panels[index].add_theme_stylebox_override(
 			"panel",

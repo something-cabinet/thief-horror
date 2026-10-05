@@ -41,7 +41,7 @@ func _verify() -> void:
 			))
 			var actual := 0
 			for socket_child: Node in socket.get_children():
-				var item := socket_child as PickupItem
+				var item := socket_child as Item
 				if item == null or not item.is_in_group("runtime_loot"):
 					continue
 				actual += 1

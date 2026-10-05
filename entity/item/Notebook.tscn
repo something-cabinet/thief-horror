@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://entity/item/Item.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://bqhyo2ru7ibl2" path="res://asset/model/items/icons/ps1_notebook.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://claak8pjepeu" path="res://asset/model/items/models/ps1_notebook.glb" id="3_model"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_notebook"]
+margin = 0.005
+size = Vector3(0.342156, 0.15, 0.5)
+
+[node name="Notebook" instance=ExtResource("1_base")]
+mass = 0.35
+item_id = &"notebook"
+display_name = "Notebook"
+icon = ExtResource("2_icon")
+
+[node name="Collision" parent="." index="0"]
+shape = SubResource("BoxShape3D_notebook")
+
+[node name="Model" parent="." index="1"]
+transform = Transform3D(0.089295, 0, 0, 0, 0.089295, 0, 0, 0, 0.089295, 0, -0.043403, 0)
+
+[node name="Mesh" parent="Model" instance=ExtResource("3_model")]

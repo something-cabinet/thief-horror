@@ -5,6 +5,11 @@
 [ext_resource type="PackedScene" uid="uid://dtf2h2dydbopt" path="res://entity/weapon/gun/projectiles/GunHitscan.tscn" id="3_fc6cq"]
 [ext_resource type="Texture2D" uid="uid://bu7r06nveodj5" path="res://asset/model/retribution_gun/Retribution_Base_color_V2.png" id="5_1rb4p"]
 [ext_resource type="PackedScene" uid="uid://d3ulx8v6ei5uu" path="res://entity/weapon/gun/vfx/MuzzleFlash.tscn" id="5_usloy"]
+[ext_resource type="PhysicsMaterial" path="res://entity/item/item_physics_material.tres" id="9_physics"]
+[ext_resource type="Texture2D" uid="uid://dnduhiutj014d" path="res://asset/ui/starter_pistol_icon.png" id="10_icon"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gun"]
+size = Vector3(0.2, 0.35, 0.65)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_okmdr"]
 resource_name = "Retribution"
@@ -56,7 +61,7 @@ loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent/ModelParent2:position")
+tracks/0/path = NodePath("Model/ModelParent2:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -68,7 +73,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:rotation")
+tracks/1/path = NodePath("Model/ModelParent2:rotation")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -80,7 +85,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
+tracks/2/path = NodePath("Model:rotation")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -97,7 +102,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("ModelParent/ModelParent2:position")
+tracks/0/path = NodePath("Model/ModelParent2:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -109,7 +114,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("ModelParent/ModelParent2:rotation")
+tracks/1/path = NodePath("Model/ModelParent2:rotation")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -121,7 +126,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("ModelParent:rotation")
+tracks/2/path = NodePath("Model:rotation")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -160,20 +165,33 @@ states/primary_attack/position = Vector2(322, -31)
 transitions = ["Start", "idle", SubResource("AnimationNodeStateMachineTransition_0ci4w"), "idle", "primary_attack", SubResource("AnimationNodeStateMachineTransition_h3hq2"), "primary_attack", "idle", SubResource("AnimationNodeStateMachineTransition_gvs8i")]
 graph_offset = Vector2(-146, -48)
 
-[node name="StarterPistol" type="Node3D" unique_id=642703410]
+[node name="StarterPistol" type="RigidBody3D" unique_id=642703410]
+collision_layer = 8
+collision_mask = 9
+mass = 1.0
+physics_material_override = ExtResource("9_physics")
+continuous_cd = true
+linear_damp = 0.65
+angular_damp = 0.9
 script = ExtResource("1_nvt8k")
 data = ExtResource("2_gfvof")
 primary_projectile = ExtResource("3_fc6cq")
+item_id = &"starter_pistol"
+display_name = "Pistol"
+icon = ExtResource("10_icon")
 fit_to_hand = false
 hand_transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, -0.169, 0.12, 0.365)
 
-[node name="ModelParent" type="Node3D" parent="." unique_id=430277193]
+[node name="Collision" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_gun")
+
+[node name="Model" type="Node3D" parent="." unique_id=430277193]
 transform = Transform3D(-1, 0, 2.5351817e-06, 0, 1, 0, -2.5351817e-06, 0, -1, 0, 0, 0)
 
-[node name="ModelParent2" type="Node3D" parent="ModelParent" unique_id=792382643]
+[node name="ModelParent2" type="Node3D" parent="Model" unique_id=792382643]
 transform = Transform3D(1, 0, 0, 0, 1, -4.46638e-06, 0, 4.46638e-06, 1, 0, 0.003108196, 0)
 
-[node name="Retribution" type="MeshInstance3D" parent="ModelParent/ModelParent2" unique_id=1780269476]
+[node name="Retribution" type="MeshInstance3D" parent="Model/ModelParent2" unique_id=1780269476]
 transform = Transform3D(-60, -5.24537e-06, -2.29282e-13, 0, -2.62268e-06, 60, -5.24537e-06, 60, 2.62268e-06, 2.57864e-07, -0.122027, 0.101715)
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_gtpwl")
