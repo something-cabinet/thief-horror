@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="GunResource" load_steps=3 format=3 uid="uid://dvpqi7d2j8ui7"]
+[gd_resource type="Resource" script_class="GunResource" format=3 uid="uid://dvpqi7d2j8ui7"]
 
-[ext_resource type="Script" path="res://entity/weapon/gun/gun_resource.gd" id="1_3kw1f"]
+[ext_resource type="Script" uid="uid://bt5xafy0tosr6" path="res://entity/weapon/gun/gun_resource.gd" id="1_3kw1f"]
 [ext_resource type="AudioStream" uid="uid://mc31yn052crk" path="res://asset/sfx/player/smg_vector_primary.wav" id="1_fbhrh"]
 
 [resource]
@@ -10,10 +10,7 @@ description = "High firerate gun.
 
 LMB: Fire array of hitscan shots."
 firerate = 10.0
-projectile_speed = 0.0
 is_hitscan = true
 primary_damage = 2
 primary_sfx = ExtResource("1_fbhrh")
-primary_bounce_time = 0
-primary_pierce = false
 primary_screenshake = 0.05

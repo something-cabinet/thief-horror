@@ -121,6 +121,7 @@ one_shot = true
 
 [node name="Decal" type="Decal" parent="." unique_id=759316702]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.27613, 0)
+size = Vector3(2, 1, 2)
 texture_albedo = ExtResource("3_tgexf")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1858978385]

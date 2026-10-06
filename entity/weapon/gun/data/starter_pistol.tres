@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="GunResource" load_steps=3 format=3 uid="uid://fglfjk2qrbee"]
+[gd_resource type="Resource" script_class="GunResource" format=3 uid="uid://fglfjk2qrbee"]
 
-[ext_resource type="Script" path="res://entity/weapon/gun/gun_resource.gd" id="1_eoy30"]
+[ext_resource type="Script" uid="uid://bt5xafy0tosr6" path="res://entity/weapon/gun/gun_resource.gd" id="1_eoy30"]
 [ext_resource type="AudioStream" uid="uid://dphd1vpk1xmy2" path="res://asset/sfx/player/pistol_primary.wav" id="1_hj13e"]
 
 [resource]
@@ -10,10 +10,7 @@ description = "Punchy pistol.
 
 LMB: Fire a hitscan shot."
 firerate = 2.4
-projectile_speed = 0.0
 is_hitscan = true
 primary_damage = 5
 primary_sfx = ExtResource("1_hj13e")
-primary_bounce_time = 0
-primary_pierce = false
 primary_screenshake = 0.2
