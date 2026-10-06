@@ -31,11 +31,10 @@ var landing_sfx = preload("res://asset/sfx/player/jump_landing.wav")
 # Guns whose shot effects are pooled before gameplay starts.
 var prewarmed_gun_scenes: Array[PackedScene] = [
 	preload("res://entity/weapon/gun/StarterPistol.tscn"),
-	preload("res://entity/weapon/gun/VectorSMG.tscn"),
 ]
 var interaction_outline_shader = preload("res://material/interaction_outline.gdshader")
 
-const MAX_SPEED = 1.5
+const WALK_SPEED = 1.5
 const JUMP_FORCE = 5.0
 
 const MAX_FALL_SPEED = 50.0
@@ -67,7 +66,7 @@ const FOOTSTEP_MAX_DISTANCE := 1.15
 
 const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
-const SPRINT_SPEED_MODIFIER = 1.6
+const SPRINT_SPEED_MODIFIER = 2.5
 
 var floor_col_pos = Vector3.ZERO
 var jumped = false
@@ -424,7 +423,7 @@ func _refresh_held_item() -> void:
 		Vector3.ZERO
 	) * Transform3D(
 		Basis.from_scale(Vector3.ONE * scale_factor),
-		-bounds.get_center() * scale_factor
+		- bounds.get_center() * scale_factor
 	)
 
 
@@ -498,13 +497,13 @@ func _physics_process(delta):
 		state_chart.send_event("airborne")
 
 	is_sprinting = not dialogue_active and Input.is_action_pressed("sprint") and not is_crouching and raw_input_dir != Vector2.ZERO
-	var max_speed = MAX_SPEED * SPRINT_SPEED_MODIFIER if is_sprinting else MAX_SPEED
+	var max_speed = WALK_SPEED * SPRINT_SPEED_MODIFIER if is_sprinting else WALK_SPEED
 
 	var current_speed = vel_horizontal.length()
 	var add_speed = clamp(max_speed - current_speed, 0.0, ACCEL_RATE * delta)
 
 	if is_dashing:
-		vel_horizontal = input_dir * MAX_SPEED
+		vel_horizontal = input_dir * WALK_SPEED
 	else:
 		vel_horizontal += input_dir * add_speed
 
@@ -512,7 +511,7 @@ func _physics_process(delta):
 
 	# Bonus speed
 	if is_dashing:
-		bonus_speed = MAX_SPEED * (DASH_SPEED_MODIFIER - 1)
+		bonus_speed = WALK_SPEED * (DASH_SPEED_MODIFIER - 1)
 	else:
 		bonus_speed = lerpf(bonus_speed, 0, delta * 9)
 
