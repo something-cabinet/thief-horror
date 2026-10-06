@@ -1062,6 +1062,7 @@ func _setup_interactable_lights() -> void:
 		body.add_child(light)
 		light.global_position = bulb_position
 		body.controlled_light = light
+		body.set_on_immediate(false)
 
 
 func _wrap_vertical_hinge(
