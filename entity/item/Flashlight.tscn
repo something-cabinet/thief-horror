@@ -9,13 +9,13 @@
 margin = 0.005
 size = Vector3(0.32, 0.111614, 0.10692)
 
-[node name="Flashlight" instance=ExtResource("1_base")]
+[node name="Flashlight" unique_id=1332365637 instance=ExtResource("1_base")]
 mass = 0.4
 script = ExtResource("2_script")
+lit = true
 item_id = &"flashlight"
 display_name = "Flashlight"
 icon = ExtResource("3_icon")
-lit = true
 
 [node name="Collision" parent="." index="0"]
 shape = SubResource("BoxShape3D_flashlight")
@@ -23,10 +23,10 @@ shape = SubResource("BoxShape3D_flashlight")
 [node name="Model" parent="." index="1"]
 transform = Transform3D(1.370775, 0, 0, 0, 1.370775, 0, 0, 0, 1.370775, -0.006877, -0.052552, 0)
 
-[node name="Mesh" parent="Model" instance=ExtResource("4_model")]
+[node name="Mesh" parent="Model" index="0" unique_id=897206222 instance=ExtResource("4_model")]
 
-[node name="Beam" type="SpotLight3D" parent="Model"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.125, 0.039, 0)
+[node name="Beam" type="SpotLight3D" parent="." index="2" unique_id=1104517854]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.16446987, 0.0009082258, 0)
 visible = false
 light_color = Color(1, 0.94, 0.82, 1)
 light_energy = 4.0

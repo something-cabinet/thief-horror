@@ -12,7 +12,6 @@
 [ext_resource type="Script" uid="uid://cdhjq8k8av1mv" path="res://addons/godot_state_charts/atomic_state.gd" id="8_dkhcu"]
 [ext_resource type="Script" uid="uid://do3vrmlf3qx2n" path="res://addons/godot_state_charts/transition.gd" id="10_g5bf6"]
 [ext_resource type="PackedScene" uid="uid://b3vol18g8n2bt" path="res://entity/common/CharacterAudioPlayer3D.tscn" id="13_7vo7v"]
-[ext_resource type="Texture2D" uid="uid://bsddtn5p7q6cj" path="res://asset/vfx/flashlight_cookie.png" id="14_flash_cookie"]
 [ext_resource type="PackedScene" path="res://ui/Hotbar.tscn" id="15_hotbar"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_ys074"]
@@ -101,18 +100,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.22, -0.55)
 
 [node name="AimRay" parent="Neck/ShakeableCamera" unique_id=2065241242 instance=ExtResource("5_dqbuo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.000178993, -0.462722)
-
-[node name="Flashlight" type="SpotLight3D" parent="Neck/ShakeableCamera" unique_id=2139348496]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.4)
-visible = false
-light_color = Color(0.94, 0.91, 0.82, 1)
-light_energy = 1.25
-light_projector = ExtResource("14_flash_cookie")
-light_size = 0.12
-shadow_enabled = true
-shadow_opacity = 0.65
-spot_range = 8.0
-spot_angle = 60.0
 
 [node name="PlayerGlow" type="OmniLight3D" parent="." unique_id=562905684]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)

@@ -8,6 +8,11 @@ var socket_type := "shelf"
 @export var source_node := NodePath()
 @export var support_nodes: Array[NodePath] = []
 
+# Runtime cache for HouseLootSpawner.find_mesh_support_y: world-space upward
+# triangles of source_node near this socket's height, three vertices each.
+var support_triangles := PackedVector3Array()
+var support_triangles_key: Array = []
+
 
 func configure(
 	type: String,

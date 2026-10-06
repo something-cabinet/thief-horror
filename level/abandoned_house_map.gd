@@ -1,7 +1,6 @@
 extends Node3D
 
 const LOOT_SOCKET_SCRIPT := preload("res://entity/item/loot_socket.gd")
-const HOUSE_LOOT_SPAWNER := preload("res://entity/item/house_loot_spawner.gd")
 const TELEVISION_SCREEN_SHADER := preload("res://material/television_screen.gdshader")
 const BLACKBOARD_PLAN_TEXTURE := preload("res://asset/texture/blackboard_robbery_plan.png")
 const BLACKBOARD_CHALK_SHADER := preload("res://material/blackboard_chalk_overlay.gdshader")
@@ -180,16 +179,6 @@ func _ready() -> void:
 		structure_count,
 		prop_count,
 	])
-	if not bool(ProjectSettings.get_setting("thief_horror/disable_runtime_loot", false)):
-		call_deferred("_spawn_runtime_loot")
-
-
-func _spawn_runtime_loot() -> void:
-	# Wait until imported furniture collision is live before rejecting sockets
-	# hidden inside unrelated props such as crates and televisions.
-	await get_tree().physics_frame
-	var loot_count: int = HOUSE_LOOT_SPAWNER.spawn_for_house(self)
-	print("Runtime house loot ready: %d collectible items" % loot_count)
 
 
 func _move_staging_to_front_door() -> void:

@@ -942,9 +942,55 @@ static func find_mesh_support_y(socket: LootSocket, world_position: Vector3) -> 
 	if source == null or source.mesh == null:
 		return NAN
 	var expected_y := socket.global_position.y
+	var triangles := _support_triangles(socket, source, expected_y)
 	var best_y := NAN
 	var best_distance := INF
 	var point := Vector2(world_position.x, world_position.z)
+	for vertex_index in range(0, triangles.size(), 3):
+		var a := triangles[vertex_index]
+		var b := triangles[vertex_index + 1]
+		var c := triangles[vertex_index + 2]
+		var a2 := Vector2(a.x, a.z)
+		var b2 := Vector2(b.x, b.z)
+		var c2 := Vector2(c.x, c.z)
+		var denominator := (
+			(b2.y - c2.y) * (a2.x - c2.x)
+			+ (c2.x - b2.x) * (a2.y - c2.y)
+		)
+		if absf(denominator) < 0.000001:
+			continue
+		var weight_a := (
+			(b2.y - c2.y) * (point.x - c2.x)
+			+ (c2.x - b2.x) * (point.y - c2.y)
+		) / denominator
+		var weight_b := (
+			(c2.y - a2.y) * (point.x - c2.x)
+			+ (a2.x - c2.x) * (point.y - c2.y)
+		) / denominator
+		var weight_c := 1.0 - weight_a - weight_b
+		if weight_a < -0.001 or weight_b < -0.001 or weight_c < -0.001:
+			continue
+		var surface_y := weight_a * a.y + weight_b * b.y + weight_c * c.y
+		var distance := absf(surface_y - expected_y)
+		if distance <= 0.045 and distance < best_distance:
+			best_distance = distance
+			best_y = surface_y
+	return best_y
+
+
+# Reading and transforming every triangle of a furniture mesh is expensive, and
+# placement queries the same socket hundreds of times, so keep only upward
+# triangles whose height range can reach the socket and reuse them until the
+# source mesh or socket moves.
+static func _support_triangles(
+	socket: LootSocket,
+	source: MeshInstance3D,
+	expected_y: float
+) -> PackedVector3Array:
+	var key := [source.mesh, source.global_transform, expected_y]
+	if socket.support_triangles_key == key:
+		return socket.support_triangles
+	var triangles := PackedVector3Array()
 	for surface_index in source.mesh.get_surface_count():
 		var arrays := source.mesh.surface_get_arrays(surface_index)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -960,32 +1006,19 @@ static func find_mesh_support_y(socket: LootSocket, world_position: Vector3) -> 
 			var cross := (b - a).cross(c - a)
 			if cross.length_squared() < 0.000001 or absf(cross.normalized().y) < 0.65:
 				continue
-			var a2 := Vector2(a.x, a.z)
-			var b2 := Vector2(b.x, b.z)
-			var c2 := Vector2(c.x, c.z)
-			var denominator := (
-				(b2.y - c2.y) * (a2.x - c2.x)
-				+ (c2.x - b2.x) * (a2.y - c2.y)
-			)
-			if absf(denominator) < 0.000001:
+			# Barycentric weights may dip to -0.001 each, which can extrapolate
+			# slightly past the vertex heights; pad the range to cover that.
+			var min_y := minf(a.y, minf(b.y, c.y))
+			var max_y := maxf(a.y, maxf(b.y, c.y))
+			var padding := 0.045 + (max_y - min_y) * 0.01
+			if min_y - padding > expected_y or max_y + padding < expected_y:
 				continue
-			var weight_a := (
-				(b2.y - c2.y) * (point.x - c2.x)
-				+ (c2.x - b2.x) * (point.y - c2.y)
-			) / denominator
-			var weight_b := (
-				(c2.y - a2.y) * (point.x - c2.x)
-				+ (a2.x - c2.x) * (point.y - c2.y)
-			) / denominator
-			var weight_c := 1.0 - weight_a - weight_b
-			if weight_a < -0.001 or weight_b < -0.001 or weight_c < -0.001:
-				continue
-			var surface_y := weight_a * a.y + weight_b * b.y + weight_c * c.y
-			var distance := absf(surface_y - expected_y)
-			if distance <= 0.045 and distance < best_distance:
-				best_distance = distance
-				best_y = surface_y
-	return best_y
+			triangles.append(a)
+			triangles.append(b)
+			triangles.append(c)
+	socket.support_triangles = triangles
+	socket.support_triangles_key = key
+	return triangles
 
 
 static func _has_clear_world_approach(item: Item) -> bool:

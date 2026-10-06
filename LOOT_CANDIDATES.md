@@ -58,10 +58,3 @@ randomized positions are retried, not forced onto empty space.
   batteries that do not make sense in the five-slot handheld inventory.
 - Story-state objects: keys, locks, documents, and puzzle-specific props.
 - Joke props and unrelated weapons that would dilute the house's grounded tone.
-
-Run the complete geometry, reachability, catalog, icon, and placement checks with:
-
-```bash
-godot --headless --path . --script tools/verify_house_loot_sockets.gd
-godot --headless --path . --script tools/verify_loot_seed_coverage.gd
-```

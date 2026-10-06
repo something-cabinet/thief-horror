@@ -28,12 +28,6 @@ godot --headless --editor --quit --path .
 
 Commit the generated `.import` file so teammates receive the same mapping.
 
-Validate every configured character with:
-
-```bash
-godot --headless --path . --script res://tools/validate_humanoid_pipeline.gd
-```
-
 ## Debugging player movement
 
 Press **F3** while playing to toggle the debug panel in the top-left corner.

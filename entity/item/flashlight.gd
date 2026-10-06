@@ -2,7 +2,7 @@ extends Item
 
 @export var lit := false
 
-@onready var beam: SpotLight3D = $Model/Beam
+@onready var beam: SpotLight3D = $Beam
 
 
 func _ready() -> void:
