@@ -1,14 +1,18 @@
 extends HingedInteractable
-class_name InteractableDoor
+
+# The scene root sits on the hinge edge, so rotating it swings the door
+# around the hinge. The collision child is authored in Door.tscn.
+@onready var door_collision: CollisionShape3D = $DoorCollision
 
 
 func _init() -> void:
-	display_name = "Front door"
-	open_angle_degrees = 100.0
+	display_name = "Door"
+	open_angle_degrees = 85.0
 	movement_speed = 1.5
 	open_away_from_actor = true
 	closing_safety_samples = 9
 
 
-func configure_collision(closed_world_bounds: AABB, _hinge_world_position: Vector3) -> void:
-	configure_bounds_collision(closed_world_bounds)
+func _ready() -> void:
+	super()
+	moving_collision = door_collision

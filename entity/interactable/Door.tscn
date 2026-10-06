@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://b8v4mhgih87jw"]
+
+[ext_resource type="PackedScene" uid="uid://cvi10tetcish0" path="res://asset/model/prop/door_1_loose.glb" id="1_wf0ru"]
+[ext_resource type="Script" uid="uid://dhsa17x2tlbsm" path="res://entity/interactable/door.gd" id="2_rsegu"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_door"]
+size = Vector3(1.2, 2.52, 0.096)
+
+[node name="Door" type="AnimatableBody3D" unique_id=1824679657]
+script = ExtResource("2_rsegu")
+
+[node name="Model" parent="." instance=ExtResource("1_wf0ru")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
+
+[node name="DoorCollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 1.26, 0.036)
+shape = SubResource("BoxShape3D_door")

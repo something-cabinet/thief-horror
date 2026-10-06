@@ -8,7 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://m2dc6vnbonuk" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_25-128x128.png" id="6_btww3"]
 [ext_resource type="PackedScene" uid="uid://bbxfh7dpk4so" path="res://entity/item/Flashlight.tscn" id="6_t7igh"]
 [ext_resource type="Texture2D" uid="uid://dd7a6m0e4g0s7" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_19-128x128.png" id="6_ysrkj"]
-[ext_resource type="PackedScene" uid="uid://cvi10tetcish0" path="res://asset/model/prop/door_1_loose.glb" id="9_bqec0"]
+[ext_resource type="PackedScene" uid="uid://b8v4mhgih87jw" path="res://entity/interactable/Door.tscn" id="9_bqec0"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -201,7 +201,7 @@ material = SubResource("StandardMaterial3D_bqec0")
 
 [node name="CSGBox3D29" type="CSGBox3D" parent="CSGCombiner3D" unique_id=536323539]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -11, 3, -43.5)
-size = Vector3(21, 5, 1)
+size = Vector3(21, 5, 0.5)
 material = SubResource("StandardMaterial3D_jbx2j")
 
 [node name="CSGBox3D28" type="CSGBox3D" parent="CSGCombiner3D" unique_id=518508080]
@@ -216,12 +216,12 @@ material = SubResource("StandardMaterial3D_dko0y")
 
 [node name="CSGBox3D25" type="CSGBox3D" parent="CSGCombiner3D" unique_id=358261058]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3, -34)
-size = Vector3(25, 5, 1)
+size = Vector3(25, 5, 0.5)
 material = SubResource("StandardMaterial3D_ucaci")
 
 [node name="CSGBox3D4" type="CSGBox3D" parent="CSGCombiner3D" unique_id=590754904]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 3, -21)
-size = Vector3(59, 5, 1)
+size = Vector3(59, 5, 0.5)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D13" type="CSGBox3D" parent="CSGCombiner3D" unique_id=938222497]
@@ -246,7 +246,7 @@ material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D9" type="CSGBox3D" parent="CSGCombiner3D" unique_id=712671589]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -14, 3, -9)
-size = Vector3(24, 5, 1)
+size = Vector3(24, 5, 0.5)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D10" type="CSGBox3D" parent="CSGCombiner3D" unique_id=2133927243]
@@ -256,9 +256,9 @@ size = Vector3(3, 4, 3)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D22" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1783541864]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.38275436, 1.7288666, -21.030762)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.3833926, 1.7288666, -21.030762)
 operation = 2
-size = Vector3(1.3056641, 2.4577332, 1.1832752)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D26" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1276277634]
@@ -310,5 +310,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.730926, -5)
 
 [node name="PropHolder" type="Node3D" parent="." unique_id=1953059409]
 
-[node name="door_1_loose2" parent="PropHolder" unique_id=1824679657 instance=ExtResource("9_bqec0")]
-transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.9813868, 0.45420396, -21.023726)
+[node name="Door" parent="PropHolder" unique_id=1824679657 instance=ExtResource("9_bqec0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9813868, 0.45420396, -21.023726)
