@@ -110,6 +110,10 @@ var jump_recovery_valid := false
 var airborne_wedge_frames := 0
 var dialogue_active := false
 var preview_mode := false
+# Neck offset relative to the body. The neck is placed manually every frame so
+# the view follows the interpolated body position but the live mouse yaw.
+var neck_offset_y := 0.0
+var neck_tilt := 0.0
 var footstep_distance_traveled := 0.525
 var next_footstep_distance := 1.05
 
@@ -141,6 +145,9 @@ func _ready():
 	dialogue_manager.dialogue_ended.connect(_on_dialogue_ended)
 	_refresh_held_item()
 	_setup_interaction_outline_overlay()
+	neck.top_level = true
+	neck.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	_update_neck_transform()
 	call_deferred("prewarm_shot_assets")
 
 func _input(event):
@@ -192,6 +199,8 @@ func _input(event):
 			dash_duration_timer.start()
 
 func _process(delta):
+	camera_control(delta)
+	_update_neck_transform()
 	_sync_interaction_outline_camera()
 	hitmarker.modulate.a = clamp(hitmarker.modulate.a - delta * 3, 0, 1)
 	_update_interaction_target()
@@ -528,7 +537,6 @@ func _physics_process(delta):
 
 	var held_item_sway_velocity = velocity * transform.basis
 	held_item_pivot.position = lerp(held_item_pivot.position, held_item_pivot_original_pos - (held_item_sway_velocity / 500), delta * 10)
-	camera_control(delta)
 
 
 func _sync_vertical_state_after_move(start_y: float) -> void:
@@ -567,7 +575,7 @@ func _try_step_up(horizontal_motion: Vector3) -> bool:
 	is_step_traversing = true
 	# Keep the view at its pre-step height while the body is already supported.
 	if result.step_height >= CharacterStepSolver.MIN_STEP_HEIGHT:
-		neck.position.y -= result.step_height
+		neck_offset_y -= result.step_height
 	return true
 
 
@@ -638,6 +646,7 @@ func _recover_from_airborne_wedge(movement_start: Vector3) -> void:
 		return
 
 	global_position = jump_recovery_position
+	reset_physics_interpolation()
 	velocity = Vector3.ZERO
 	vel_horizontal = Vector2.ZERO
 	vel_vertical = 0.0
@@ -758,17 +767,17 @@ func camera_control(delta):
 	# Tilt camera
 	if GameManager.camera_tilt:
 		if raw_input_dir.x < 0:
-			neck.rotation.z = lerp(neck.rotation.z, deg_to_rad(3.0), delta * 5)
+			neck_tilt = lerp(neck_tilt, deg_to_rad(3.0), delta * 5)
 		elif raw_input_dir.x > 0:
-			neck.rotation.z = lerp(neck.rotation.z, deg_to_rad(-3.0), delta * 5)
+			neck_tilt = lerp(neck_tilt, deg_to_rad(-3.0), delta * 5)
 		else:
-			neck.rotation.z = lerp(neck.rotation.z, deg_to_rad(0), delta * 5)
+			neck_tilt = lerp(neck_tilt, deg_to_rad(0), delta * 5)
 
 	# Lower camera
 	if is_crouching:
-		neck.position.y = lerp(neck.position.y, -1.0, delta * 5)
+		neck_offset_y = lerp(neck_offset_y, -1.0, delta * 5)
 	else:
-		neck.position.y = lerp(neck.position.y, 0.0, delta * 5)
+		neck_offset_y = lerp(neck_offset_y, 0.0, delta * 5)
 
 func _on_dash_duration_timeout() -> void:
 	is_dashing = false
@@ -980,6 +989,16 @@ func snap_to_floor(max_distance: float = 100.0) -> void:
 	var capsule := standing_collision.shape as CapsuleShape3D
 	var half_height := capsule.height * 0.5 if capsule != null else 1.0
 	global_position.y = result.position.y + half_height + 0.01
+	reset_physics_interpolation()
+	_update_neck_transform()
+
+
+func _update_neck_transform() -> void:
+	var origin := get_global_transform_interpolated().origin if is_inside_tree() else global_position
+	neck.global_transform = Transform3D(
+		global_basis * Basis.from_euler(Vector3(0.0, 0.0, neck_tilt)),
+		origin + global_basis * Vector3(0.0, neck_offset_y, 0.0)
+	)
 
 func render_prewarmed_shot_assets() -> void:
 	var warmup_start := player_camera.global_position
