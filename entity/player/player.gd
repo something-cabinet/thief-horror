@@ -63,6 +63,14 @@ const OUTLINE_VISIBILITY_MASK := 1 << 19
 const FOOTSTEP_SURFACE_MASK := (1 << 0) | (1 << 4)
 const FOOTSTEP_MIN_DISTANCE := 0.95
 const FOOTSTEP_MAX_DISTANCE := 1.15
+const LADDER_SNAP_RATE := 10.0
+const LADDER_JUMP_OFF_MULTIPLIER := 0.6
+const LADDER_JUMP_OFF_SPEED := 3.0
+const LADDER_MANTLE_SPEED := 2.0
+const LADDER_MANTLE_CLEARANCE := 0.05
+# Grabbing from a floor this close to the ladder top climbs over onto it.
+const LADDER_TOP_ENTRY_MARGIN := 0.5
+const LADDER_RUNG_SOUND_DISTANCE := 0.45
 
 const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
@@ -115,6 +123,13 @@ var neck_offset_y := 0.0
 var neck_tilt := 0.0
 var footstep_distance_traveled := 0.525
 var next_footstep_distance := 1.05
+var current_ladder: Ladder
+# Horizontal direction from the ladder's rails toward the climbing player.
+var ladder_normal := Vector3.ZERO
+var ladder_mantle_active := false
+var ladder_mantle_target := Vector3.ZERO
+var ladder_mantle_leaves := false
+var ladder_rung_distance := 0.0
 
 func _notification(what: int) -> void:
 	# Stored items are outside the scene tree, so nothing else frees them.
@@ -169,7 +184,11 @@ func _input(event):
 	if event is InputEventMouseMotion:
 		rotate_player(event)
 	if event.is_action_pressed("interact"):
-		_try_interact_focused()
+		if current_ladder != null:
+			if not ladder_mantle_active:
+				release_ladder()
+		else:
+			_try_interact_focused()
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("throw_item"):
@@ -190,7 +209,7 @@ func _input(event):
 			_select_item_slot((selected_item_slot + 1) % INVENTORY_SIZE)
 			get_viewport().set_input_as_handled()
 			return
-	if event.is_action_pressed("dash"):
+	if event.is_action_pressed("dash") and current_ladder == null:
 		if last_dashed_timestamp + dash_cd * 1000 <= Time.get_ticks_msec():
 			last_dashed_timestamp = Time.get_ticks_msec()
 			is_dashing = true
@@ -253,8 +272,10 @@ func _throw_selected_item() -> void:
 
 
 func _update_interaction_target() -> void:
-	if not hotbar.visible or not is_inside_tree():
+	if not hotbar.visible or not is_inside_tree() or current_ladder != null:
+		# While climbing, interact only lets go, so nothing else is focused.
 		_set_focused_interactable(null)
+		_refresh_interaction_prompt()
 		return
 	var ray_start := player_camera.camera.global_position
 	var ray_end := ray_start - player_camera.camera.global_basis.z * INTERACTION_DISTANCE
@@ -297,6 +318,8 @@ func _set_focused_interactable(candidate: Node3D) -> void:
 func _refresh_interaction_prompt() -> void:
 	if Time.get_ticks_msec() < dev_probe_message_until_msec:
 		hotbar.set_prompt(dev_probe_message)
+	elif current_ladder != null and not ladder_mantle_active:
+		hotbar.set_prompt(current_ladder.get_interaction_prompt())
 	elif is_instance_valid(focused_interactable):
 		hotbar.set_prompt(String(focused_interactable.call("get_interaction_prompt")))
 	else:
@@ -465,6 +488,9 @@ func _held_item_display_size(item_id: StringName) -> float:
 
 
 func _physics_process(delta):
+	if current_ladder != null:
+		_ladder_physics_process(delta)
+		return
 	if dialogue_active:
 		raw_input_dir = Vector2.ZERO
 		input_dir = Vector2.ZERO
@@ -784,10 +810,15 @@ func _on_dash_duration_timeout() -> void:
 func _on_grounded_state_input(event: InputEvent):
 	if dialogue_active:
 		return
+	if current_ladder != null:
+		_ladder_state_input(event)
+		return
 	if event.is_action_pressed("jump"):
 		jump()
 
 func _on_grounded_state_physics_processing(_delta: float):
+	if current_ladder != null:
+		return
 	if dialogue_active:
 		if _can_stand():
 			is_crouching = false
@@ -803,15 +834,26 @@ func _apply_crouch_collision() -> void:
 
 # True when the standing capsule fits at the current position (no low ceiling overhead).
 func _can_stand() -> bool:
+	return _standing_capsule_fits(global_position)
+
+
+# True when the standing capsule fits with the body origin at body_position.
+func _standing_capsule_fits(body_position: Vector3) -> bool:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = standing_collision.shape
-	query.transform = standing_collision.global_transform
+	query.transform = Transform3D(
+		standing_collision.global_basis,
+		body_position + (standing_collision.global_position - global_position)
+	)
 	query.collision_mask = collision_mask
 	query.exclude = [get_rid()]
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 func _on_airborne_state_input(event: InputEvent):
 	if dialogue_active:
+		return
+	if current_ladder != null:
+		_ladder_state_input(event)
 		return
 	if event.is_action_pressed("jump"):
 		if can_coyote_jump and not jumped:
@@ -826,9 +868,136 @@ func _on_airborne_state_entered() -> void:
 		can_coyote_jump = true
 
 func _on_airborne_state_physics_processing(delta: float) -> void:
+	if current_ladder != null:
+		return
 	if not is_dashing:
 		vel_vertical -= GRAVITY * delta
 	vel_vertical = clamp(vel_vertical, -MAX_FALL_SPEED, 10000)
+
+func grab_ladder(ladder: Ladder) -> void:
+	current_ladder = ladder
+	ladder_normal = ladder.get_climb_normal(global_position)
+	ladder_mantle_active = false
+	ladder_rung_distance = 0.0
+	is_dashing = false
+	is_sprinting = false
+	if _can_stand():
+		is_crouching = false
+	vel_horizontal = Vector2.ZERO
+	vel_vertical = 0.0
+	velocity = Vector3.ZERO
+	jumped = false
+	can_coyote_jump = false
+	current_air_jump_count = 0
+	jump_recovery_valid = false
+	var feet_y := global_position.y - _standing_half_height()
+	if is_on_floor() and feet_y >= ladder.get_top_y() - LADDER_TOP_ENTRY_MARGIN:
+		_try_start_ladder_mantle(false)
+	_refresh_interaction_prompt()
+
+
+func release_ladder() -> void:
+	current_ladder = null
+	ladder_mantle_active = false
+	vel_horizontal = Vector2.ZERO
+	vel_vertical = 0.0
+	velocity = Vector3.ZERO
+	# Falling straight off a ladder is not a ledge walk-off; no coyote jump.
+	jumped = not is_on_floor()
+	_refresh_interaction_prompt()
+
+
+func _ladder_state_input(event: InputEvent) -> void:
+	if event.is_action_pressed("jump") and not ladder_mantle_active:
+		var push := ladder_normal * LADDER_JUMP_OFF_SPEED
+		release_ladder()
+		jump(LADDER_JUMP_OFF_MULTIPLIER)
+		vel_horizontal = Vector2(push.x, push.z)
+
+
+func _ladder_physics_process(delta: float) -> void:
+	raw_input_dir = Vector2.ZERO
+	input_dir = Vector2.ZERO
+	if not is_instance_valid(current_ladder) or not current_ladder.is_inside_tree():
+		release_ladder()
+		return
+	if ladder_mantle_active:
+		_process_ladder_mantle(delta)
+		return
+
+	var climb_input := 0.0 if dialogue_active else Input.get_axis("down", "up")
+	var feet_y := global_position.y - _standing_half_height()
+	if climb_input > 0.0 and feet_y >= current_ladder.get_top_y():
+		climb_input = 0.0
+		if _try_start_ladder_mantle(true):
+			return
+
+	var anchor := current_ladder.get_climb_point(ladder_normal)
+	var snap := Vector3(anchor.x - global_position.x, 0.0, anchor.z - global_position.z)
+	var start_y := global_position.y
+	velocity = snap * LADDER_SNAP_RATE + Vector3.UP * climb_input * current_ladder.climb_speed
+	move_and_slide()
+	_update_ladder_rung_sound(absf(global_position.y - start_y))
+	if climb_input < 0.0 and is_on_floor():
+		# Stepped off the bottom rung.
+		release_ladder()
+
+
+# Climbs over the top of the ladder to its other side when there is room to
+# stand there: off the ladder onto the floor, or from the floor onto the ladder.
+func _try_start_ladder_mantle(leave_ladder: bool) -> bool:
+	var exit_point := current_ladder.get_climb_point(-ladder_normal)
+	var target := Vector3(
+		exit_point.x,
+		current_ladder.get_top_y() + _standing_half_height() + LADDER_MANTLE_CLEARANCE,
+		exit_point.z
+	)
+	if not _standing_capsule_fits(target):
+		return false
+	if _can_stand():
+		is_crouching = false
+	ladder_mantle_target = target
+	ladder_mantle_active = true
+	ladder_mantle_leaves = leave_ladder
+	ladder_normal = -ladder_normal
+	_refresh_interaction_prompt()
+	return true
+
+
+func _process_ladder_mantle(delta: float) -> void:
+	var step := LADDER_MANTLE_SPEED * delta
+	if global_position.y < ladder_mantle_target.y:
+		global_position.y = move_toward(global_position.y, ladder_mantle_target.y, step)
+		return
+	var flat_target := Vector3(ladder_mantle_target.x, global_position.y, ladder_mantle_target.z)
+	global_position = global_position.move_toward(flat_target, step)
+	if not global_position.is_equal_approx(flat_target):
+		return
+	ladder_mantle_active = false
+	if ladder_mantle_leaves:
+		release_ladder()
+		jumped = false
+		apply_floor_snap()
+	else:
+		_refresh_interaction_prompt()
+
+
+func _update_ladder_rung_sound(climbed: float) -> void:
+	ladder_rung_distance += climbed
+	if ladder_rung_distance < LADDER_RUNG_SOUND_DISTANCE:
+		return
+	ladder_rung_distance = 0.0
+	var profile := _footstep_profile(&"metal")
+	var rung_player := audio_player.prepare(landing_sfx, "SFX")
+	rung_player.volume_db = randf_range(profile.z, profile.w)
+	rung_player.pitch_scale = randf_range(profile.x, profile.y)
+	rung_player.call_deferred("play")
+
+
+func _standing_half_height() -> float:
+	var capsule := standing_collision.shape as CapsuleShape3D
+	return capsule.height * 0.5 if capsule != null else 1.0
+
 
 func moving_toward_wall() -> bool:
 	wall_raycast.target_position = Vector3(raw_input_dir.x, 0, raw_input_dir.y)

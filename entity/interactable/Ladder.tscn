@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bxbuqejbjybht"]
+
+[ext_resource type="PackedScene" uid="uid://bs1snyylgem2t" path="res://asset/model/prop/ladder_hr_1_short.glb" id="1_oaygy"]
+[ext_resource type="Script" uid="uid://c55a5fss3nqhi" path="res://entity/interactable/ladder.gd" id="2_ladder"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ladder"]
+size = Vector3(0.08, 2.7, 0.84)
+
+[node name="Ladder" type="StaticBody3D" unique_id=2070409641]
+script = ExtResource("2_ladder")
+
+[node name="Model" parent="." instance=ExtResource("1_oaygy")]
+
+[node name="ClimbCollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, -1.15, 0)
+shape = SubResource("BoxShape3D_ladder")

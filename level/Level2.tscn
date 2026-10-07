@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" uid="uid://bbxfh7dpk4so" path="res://entity/item/Flashlight.tscn" id="6_t7igh"]
 [ext_resource type="Texture2D" uid="uid://dd7a6m0e4g0s7" path="res://asset/texture/sbs-tiny-texture-pack/Tile/Tile_19-128x128.png" id="6_ysrkj"]
 [ext_resource type="PackedScene" uid="uid://b8v4mhgih87jw" path="res://entity/interactable/Door.tscn" id="9_bqec0"]
+[ext_resource type="PackedScene" uid="uid://bxbuqejbjybht" path="res://entity/interactable/Ladder.tscn" id="10_jbx2j"]
+[ext_resource type="PackedScene" uid="uid://c8hvb8i1r5ukd" path="res://entity/interactable/TrapDoor.tscn" id="11_dko0y"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_house"]
 sky_top_color = Color(0.002, 0.004, 0.01, 1)
@@ -120,7 +122,7 @@ autoplay = true
 bus = &"BGM"
 
 [node name="Player" parent="." unique_id=816921455 instance=ExtResource("2_en6wr")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9185543, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9185543, -3)
 collision_layer = 4
 collision_mask = 3
 initial_camera_pitch_degrees = 1.3
@@ -156,7 +158,7 @@ material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D16" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1910933977]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 3, -1)
-size = Vector3(20, 5, 1)
+size = Vector3(20, 5, 0.5)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D14" type="CSGBox3D" parent="CSGCombiner3D" unique_id=217570230]
@@ -206,7 +208,7 @@ material = SubResource("StandardMaterial3D_jbx2j")
 
 [node name="CSGBox3D28" type="CSGBox3D" parent="CSGCombiner3D" unique_id=518508080]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 19, 3, -8.5)
-size = Vector3(25, 5, 1)
+size = Vector3(25, 5, 0.5)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D27" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1913624538]
@@ -250,9 +252,9 @@ size = Vector3(24, 5, 0.5)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D10" type="CSGBox3D" parent="CSGCombiner3D" unique_id=2133927243]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -14, 2.5, -16.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -14, 1.75, -16.5)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D22" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1783541864]
@@ -262,33 +264,33 @@ size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D26" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1276277634]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0, 2.5, -33.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.34862697, 1.75, -33.881)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_flpjb")
 
 [node name="CSGBox3D30" type="CSGBox3D" parent="CSGCombiner3D" unique_id=774051169]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -11, 2.5, -45.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -11, 1.75, -45.5)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_ww68s")
 
 [node name="CSGBox3D31" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1499508081]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 13, 2.5, -45.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 13, 1.75, -45.5)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_y587r")
 
 [node name="CSGBox3D17" type="CSGBox3D" parent="CSGCombiner3D" unique_id=943944773]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -33, 2.5, -0.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -33, 1.75, -0.98677564)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="Hole" type="CSGBox3D" parent="CSGCombiner3D" unique_id=604444614]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -29, -2.5, -12.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -29, -2, -12.5)
 operation = 2
-size = Vector3(12, 6, 14)
+size = Vector3(12, 5, 14)
 material = SubResource("StandardMaterial3D_ysrkj")
 
 [node name="CSGBox3D11" type="CSGBox3D" parent="CSGCombiner3D" unique_id=2001879223]
@@ -298,9 +300,9 @@ size = Vector3(3, 4, 3)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="CSGBox3D12" type="CSGBox3D" parent="CSGCombiner3D" unique_id=970558708]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 19, 2.5, -1.5)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 19, 1.75, -1.5)
 operation = 2
-size = Vector3(3, 4, 3)
+size = Vector3(1, 2.5, 1.2)
 material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="ItemHolder" type="Node3D" parent="." unique_id=236467537]
@@ -312,3 +314,19 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.730926, -5)
 
 [node name="Door" parent="PropHolder" unique_id=1824679657 instance=ExtResource("9_bqec0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9813868, 0.45420396, -21.023726)
+
+[node name="Door3" parent="PropHolder" unique_id=561081067 instance=ExtResource("9_bqec0")]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -13.837648, 0.45420396, -17.127567)
+
+[node name="Door2" parent="PropHolder" unique_id=1269418684 instance=ExtResource("9_bqec0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9813868, 0.45420396, -34.023727)
+
+[node name="Ladder" parent="PropHolder" unique_id=2070409641 instance=ExtResource("10_jbx2j")]
+transform = Transform3D(-6.77251e-08, 5.7824145e-10, 1.5, 0.3882286, 1.4488888, 1.697001e-08, -1.4488888, 0.3882286, -6.556708e-08, 0, 4.002178, 0.8335357)
+
+[node name="Ladder2" parent="PropHolder" unique_id=487305584 instance=ExtResource("10_jbx2j")]
+transform = Transform3D(-8.742278e-08, 0, 2, 0, 2, 0, -2, 0, -8.742278e-08, -34.326622, 0.38998055, -6.602919)
+
+[node name="TrapDoor" parent="PropHolder" unique_id=1677140709 instance=ExtResource("11_dko0y")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.9970531, 0)
+target_level_index = 0
