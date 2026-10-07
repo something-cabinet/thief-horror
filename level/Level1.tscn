@@ -78,3 +78,4 @@ bus = &"BGM"
 
 [node name="TrapDoor" parent="PropHolder" unique_id=1677140709 instance=ExtResource("8_vu8yj")]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -32.051544, -3.7770066, -126.53459)
+target_level_path = "uid://bh45nm4q62q0y"

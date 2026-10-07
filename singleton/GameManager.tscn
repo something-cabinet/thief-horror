@@ -7,5 +7,5 @@
 [node name="GameManager" type="Node2D"]
 process_mode = 3
 script = ExtResource("1_8tqu0")
-level_list = Array[PackedScene]([ExtResource("2_lvl1")])
+first_level = ExtResource("2_lvl1")
 title_screen = ExtResource("3_title")

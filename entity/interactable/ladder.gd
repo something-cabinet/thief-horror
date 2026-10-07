@@ -39,28 +39,41 @@ func set_highlighted(highlighted: bool) -> void:
 	InteractableVisual.set_highlighted(self, highlighted)
 
 
-# Horizontal unit vector pointing out of the rail plane toward the side `from` is on.
+# Unit vector up along the rails. Tilted when the ladder leans.
+func get_up() -> Vector3:
+	return global_basis.y.normalized()
+
+
+# Unit vector out of the rail plane toward the side `from` is on.
 func get_climb_normal(from: Vector3) -> Vector3:
 	var side := 1.0 if to_local(from).x >= climb_collision.position.x else -1.0
-	var normal := global_basis * Vector3(side, 0.0, 0.0)
-	normal.y = 0.0
-	return normal.normalized()
+	return (global_basis.x * side).normalized()
 
 
-# Where the player's center sits horizontally while climbing on the `normal` side.
-func get_climb_point(normal: Vector3) -> Vector3:
-	return climb_collision.global_position + normal * climb_distance
+# Point on the climbing line, on the `normal` side, level with `from` along the
+# rails. A leaning ladder brings the top or bottom of an upright body closer to
+# the rails, so the line moves out by how far body_half_height leans over.
+func get_climb_point(normal: Vector3, from: Vector3, body_half_height: float) -> Vector3:
+	var up := get_up()
+	var lean := Vector2(up.x, up.z).length()
+	var line_origin := climb_collision.global_position + normal * (climb_distance + body_half_height * lean)
+	return line_origin + up * (from - line_origin).dot(up)
+
+
+# Where an upright body stands after climbing over the top onto the `normal` side.
+func get_top_exit_point(normal: Vector3) -> Vector3:
+	var flat_normal := Vector3(normal.x, 0.0, normal.z).normalized()
+	return _span_point(0.5) + flat_normal * climb_distance
 
 
 func get_bottom_y() -> float:
-	return _span_y(-0.5)
+	return _span_point(-0.5).y
 
 
 func get_top_y() -> float:
-	return _span_y(0.5)
+	return _span_point(0.5).y
 
 
-func _span_y(half_sign: float) -> float:
+func _span_point(half_sign: float) -> Vector3:
 	var box := climb_collision.shape as BoxShape3D
-	var local_point := climb_collision.position + Vector3(0.0, box.size.y * half_sign, 0.0)
-	return to_global(local_point).y
+	return to_global(climb_collision.position + Vector3(0.0, box.size.y * half_sign, 0.0))

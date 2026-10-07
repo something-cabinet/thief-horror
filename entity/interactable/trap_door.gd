@@ -2,8 +2,9 @@ extends StaticBody3D
 class_name TrapDoor
 
 @export var display_name := "Trap Door"
-## Index into GameManager.level_list of the level this trap door leads to.
-@export var target_level_index := 1
+## Level this trap door leads to. Stored as a path and loaded on use, because
+## levels that link to each other would otherwise load each other in a cycle.
+@export_file("*.tscn") var target_level_path := ""
 
 var is_used := false
 
@@ -17,15 +18,15 @@ func get_interaction_prompt() -> String:
 
 
 func interact(_player: Node) -> void:
-	return
 	# change_level is deferred, so guard against a second press before the scene swaps.
 	if is_used:
 		return
-	if target_level_index < 0 or target_level_index >= GameManager.level_list.size():
-		push_error("%s: target_level_index %d is not in GameManager.level_list" % [name, target_level_index])
+	var target_level := load(target_level_path) as PackedScene if not target_level_path.is_empty() else null
+	if target_level == null:
+		push_error("%s: target_level_path \"%s\" is not a scene" % [name, target_level_path])
 		return
 	is_used = true
-	GameManager.change_level(target_level_index)
+	GameManager.change_level(target_level)
 
 
 func set_highlighted(highlighted: bool) -> void:

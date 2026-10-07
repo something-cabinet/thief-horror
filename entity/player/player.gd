@@ -829,6 +829,8 @@ func _on_airborne_state_physics_processing(delta: float) -> void:
 
 func grab_ladder(ladder: Ladder) -> void:
 	current_ladder = ladder
+	# An upright body beside a leaning ladder would catch on its rails.
+	add_collision_exception_with(ladder)
 	ladder_normal = ladder.get_climb_normal(global_position)
 	ladder_mantle_active = false
 	ladder_rung_distance = 0.0
@@ -848,6 +850,8 @@ func grab_ladder(ladder: Ladder) -> void:
 
 
 func release_ladder() -> void:
+	if is_instance_valid(current_ladder):
+		remove_collision_exception_with(current_ladder)
 	current_ladder = null
 	ladder_mantle_active = false
 	vel_horizontal = Vector2.ZERO
@@ -883,10 +887,16 @@ func _ladder_physics_process(delta: float) -> void:
 		if _try_start_ladder_mantle(true):
 			return
 
-	var anchor := current_ladder.get_climb_point(ladder_normal)
-	var snap := Vector3(anchor.x - global_position.x, 0.0, anchor.z - global_position.z)
+	var anchor := current_ladder.get_climb_point(
+		ladder_normal,
+		global_position,
+		_standing_half_height()
+	)
 	var start_y := global_position.y
-	velocity = snap * LADDER_SNAP_RATE + Vector3.UP * climb_input * current_ladder.climb_speed
+	velocity = (
+		(anchor - global_position) * LADDER_SNAP_RATE
+		+ current_ladder.get_up() * climb_input * current_ladder.climb_speed
+	)
 	move_and_slide()
 	_update_ladder_rung_sound(absf(global_position.y - start_y))
 	if climb_input < 0.0 and is_on_floor():
@@ -897,7 +907,7 @@ func _ladder_physics_process(delta: float) -> void:
 # Climbs over the top of the ladder to its other side when there is room to
 # stand there: off the ladder onto the floor, or from the floor onto the ladder.
 func _try_start_ladder_mantle(leave_ladder: bool) -> bool:
-	var exit_point := current_ladder.get_climb_point(-ladder_normal)
+	var exit_point := current_ladder.get_top_exit_point(-ladder_normal)
 	var target := Vector3(
 		exit_point.x,
 		current_ladder.get_top_y() + _standing_half_height() + LADDER_MANTLE_CLEARANCE,

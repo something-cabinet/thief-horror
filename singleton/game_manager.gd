@@ -3,7 +3,8 @@ extends Node2D
 signal first_level_prepared
 signal first_level_started
 
-@export var level_list: Array[PackedScene]
+## Level prepared behind the title screen and started from it.
+@export var first_level: PackedScene
 @export var title_screen: PackedScene
 
 var pause_ui: PauseUI
@@ -12,7 +13,6 @@ var is_preparing_first_level := false
 
 var cached_first_level: Node
 var current_level: Node
-var current_level_index := 0
 
 # Setting
 var mouse_sensitivity: float = 50.0
@@ -88,14 +88,14 @@ func _apply_window_size(recommended_size: Vector2i) -> void:
 
 
 func prepare_first_level() -> void:
-    if cached_first_level != null or is_preparing_first_level or level_list.is_empty():
+    if cached_first_level != null or is_preparing_first_level or first_level == null:
         return
 
     is_preparing_first_level = true
     # Let the title screen draw before loading the level in the real gameplay world.
     await get_tree().process_frame
 
-    cached_first_level = level_list[0].instantiate()
+    cached_first_level = first_level.instantiate()
     get_tree().root.add_child(cached_first_level)
 
     var preview_player := cached_first_level.find_child("Player", true, false) as Player
@@ -133,7 +133,6 @@ func load_first_level() -> void:
         preview_player.set_preview_mode(false)
         preview_player.process_mode = Node.PROCESS_MODE_INHERIT
     get_tree().current_scene = cached_first_level
-    current_level_index = 0
     if preview_player != null:
         preview_player.snap_to_floor()
         preview_player.velocity = Vector3.ZERO
@@ -175,15 +174,14 @@ func go_back_to_title_screen():
     get_tree().change_scene_to_packed(title_screen)
 
 
-func change_level(index: int) -> void:
-    if index < 0 or index >= level_list.size():
-        push_error("change_level: index %d out of range (%d levels)" % [index, level_list.size()])
+func change_level(level: PackedScene) -> void:
+    if level == null:
+        push_error("change_level: level is null")
         return
 
     reset_data()
-    current_level_index = index
     # Deferred: the new level's _ready sets current_level, and Player._ready recaptures the mouse.
-    get_tree().change_scene_to_packed(level_list[index])
+    get_tree().change_scene_to_packed(level)
 
 
 func reset_data():
