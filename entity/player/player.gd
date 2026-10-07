@@ -1,8 +1,6 @@
 extends CharacterBody3D
 class_name Player
 
-@export var max_air_jump = 2
-@export var dash_cd: float = 0.5
 @export var aim_ray_prefab: PackedScene
 @export_range(0.0, 0.6, 0.05) var max_step_height := 0.35
 @export_range(-89.0, 89.0, 0.1) var initial_camera_pitch_degrees := 0.0
@@ -11,11 +9,9 @@ class_name Player
 
 @onready var player_camera: ShakeableCamera = $Neck/ShakeableCamera
 @onready var debug_label: Label = $Neck/ShakeableCamera/DebugLabel
-@onready var dash_duration_timer: Timer = $DashDuration
 @onready var coyote_timer: Timer = $CoyoteTimer
 @onready var neck: Node3D = $Neck
 @onready var state_chart: StateChart = $StateChart
-@onready var wall_raycast: RayCast3D = $WallRaycast
 @onready var standing_collision: CollisionShape3D = $StandingCollision
 @onready var crouching_collision: CollisionShape3D = $CrouchingCollision
 @onready var audio_player: CharacterAudioPlayer3D = $CharacterAudioPlayer3D
@@ -42,8 +38,6 @@ const ACCEL_RATE = 40.0
 const GRAVITY = 14
 const FALL_SPEED_TO_SHAKE_CAMERA = 15
 const HEAVY_FALL_SHAKE_TRAUMA = 0.8
-const SLIDE_SHAKE_TRAUMA = 0.1
-const MIN_HEIGHT_TO_SLAM = 1.5
 const RECOIL_COEFFICIENT = 10
 const HITSCAN_COLLISION_MASK = 3
 const HITSCAN_SURFACE_OFFSET = 0.01
@@ -72,16 +66,13 @@ const LADDER_MANTLE_CLEARANCE := 0.05
 const LADDER_TOP_ENTRY_MARGIN := 0.5
 const LADDER_RUNG_SOUND_DISTANCE := 0.45
 
-const DASH_SPEED_MODIFIER = 2
 const CROUCH_SPEED_MODIFIER = 0.5
 const SPRINT_SPEED_MODIFIER = 2.5
 
-var floor_col_pos = Vector3.ZERO
 var jumped = false
 var can_coyote_jump = false
 var vel_horizontal = Vector2(0, 0)
 var vel_vertical = 0
-var is_dashing = false
 var is_sprinting = false
 var is_crouching := false:
 	set(value):
@@ -90,11 +81,7 @@ var is_crouching := false:
 			_apply_crouch_collision()
 var raw_input_dir = Vector2(0, 0)
 var input_dir = Vector2(0, 0)
-var bonus_speed = 0
 var held_item_pivot_original_pos: Vector3
-var last_dashed_timestamp
-var current_air_jump_count = 0
-var slide_dir = Vector2(0, 0)
 var hitscan_pools: Dictionary = {}
 var particle_pools: Dictionary = {}
 var shot_assets_ready := false
@@ -149,7 +136,6 @@ func _ready():
 	if not GameManager.is_preparing_first_level:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	held_item_pivot_original_pos = held_item_pivot.position
-	last_dashed_timestamp = 0
 	for index in INVENTORY_SIZE:
 		inventory.append(null)
 	_fill_initial_inventory()
@@ -209,12 +195,6 @@ func _input(event):
 			_select_item_slot((selected_item_slot + 1) % INVENTORY_SIZE)
 			get_viewport().set_input_as_handled()
 			return
-	if event.is_action_pressed("dash") and current_ladder == null:
-		if last_dashed_timestamp + dash_cd * 1000 <= Time.get_ticks_msec():
-			last_dashed_timestamp = Time.get_ticks_msec()
-			is_dashing = true
-			vel_vertical = 0
-			dash_duration_timer.start()
 
 func _process(delta):
 	camera_control(delta)
@@ -494,11 +474,6 @@ func _physics_process(delta):
 	if dialogue_active:
 		raw_input_dir = Vector2.ZERO
 		input_dir = Vector2.ZERO
-		is_dashing = false
-	elif is_dashing:
-		if raw_input_dir == Vector2.ZERO:
-			raw_input_dir = Vector2(0, -1)
-			input_dir = raw_input_dir.rotated(-rotation.y)
 	else:
 		raw_input_dir = Input.get_vector("left", "right", "up", "down")
 		input_dir = raw_input_dir.rotated(-rotation.y)
@@ -510,7 +485,6 @@ func _physics_process(delta):
 
 	if is_on_floor():
 		state_chart.send_event("grounded")
-		current_air_jump_count = 0
 		if vel_vertical < 0:
 			if landing_sfx_armed:
 				if vel_vertical < -FALL_SPEED_TO_SHAKE_CAMERA:
@@ -528,24 +502,12 @@ func _physics_process(delta):
 	var current_speed = vel_horizontal.length()
 	var add_speed = clamp(max_speed - current_speed, 0.0, ACCEL_RATE * delta)
 
-	if is_dashing:
-		vel_horizontal = input_dir * WALK_SPEED
-	else:
-		vel_horizontal += input_dir * add_speed
+	vel_horizontal += input_dir * add_speed
 
 	velocity = Vector3(vel_horizontal.x, vel_vertical, vel_horizontal.y)
 
-	# Bonus speed
-	if is_dashing:
-		bonus_speed = WALK_SPEED * (DASH_SPEED_MODIFIER - 1)
-	else:
-		bonus_speed = lerpf(bonus_speed, 0, delta * 9)
-
-	var velocity_dir = velocity.normalized()
-
 	if is_crouching:
 		velocity = velocity * CROUCH_SPEED_MODIFIER
-	velocity += Vector3(velocity_dir.x, 0, velocity_dir.z) * bonus_speed
 	var movement_start := global_position
 	var requested_horizontal_motion: Vector3 = Vector3(velocity.x, 0.0, velocity.z) * delta
 	is_step_traversing = false
@@ -576,7 +538,6 @@ func _sync_vertical_state_after_move(start_y: float) -> void:
 		vel_vertical = 0.0
 		velocity.y = 0.0
 		jumped = false
-		current_air_jump_count = 0
 		step_debug_reason = "blocked jump recovered"
 	elif is_on_ceiling():
 		vel_vertical = minf(vel_vertical, 0.0)
@@ -754,11 +715,10 @@ func show_debug_label():
 	debug_label.text += "\nYaw: %.1f | Pitch: %.1f" % [rotation_degrees.y, player_camera.rotation_degrees.x]
 	debug_label.text += "\nFPS: {0}".format([Engine.get_frames_per_second()])
 	debug_label.text += "\nHSpeed: {0} u/s\nVSpeed: {1} u/s".format([h_speed, v_speed])
-	debug_label.text += "\nOn ground: {0} | wall-cling: {1}".format([is_on_floor(), moving_toward_wall()])
+	debug_label.text += "\nOn ground: {0}".format([is_on_floor()])
 	debug_label.text += "\nStep traversal: {0}".format([is_step_traversing])
 	debug_label.text += "\nStep result: {0}".format([step_debug_reason])
-	debug_label.text += "\nIs dashing: {0} | Is crouching: {1} | Is sprinting: {2}".format([is_dashing, is_crouching, is_sprinting])
-	debug_label.text += "\nAir jumps left: {0}".format([max_air_jump - current_air_jump_count])
+	debug_label.text += "\nIs crouching: {0} | Is sprinting: {1}".format([is_crouching, is_sprinting])
 	debug_label.text += "\nCoyote jump: {0}".format([can_coyote_jump])
 	var selected_item := inventory[selected_item_slot]
 	var selected_name := selected_item.display_name if selected_item != null else "Empty"
@@ -771,7 +731,6 @@ func jump(multiplier = 1.0):
 	vel_vertical = JUMP_FORCE * multiplier
 	jumped = true
 	state_chart.send_event("jump")
-	is_dashing = false
 	if _can_stand():
 		is_crouching = false
 
@@ -803,9 +762,6 @@ func camera_control(delta):
 		neck_offset_y = lerp(neck_offset_y, -1.0, delta * 5)
 	else:
 		neck_offset_y = lerp(neck_offset_y, 0.0, delta * 5)
-
-func _on_dash_duration_timeout() -> void:
-	is_dashing = false
 
 func _on_grounded_state_input(event: InputEvent):
 	if dialogue_active:
@@ -855,12 +811,8 @@ func _on_airborne_state_input(event: InputEvent):
 	if current_ladder != null:
 		_ladder_state_input(event)
 		return
-	if event.is_action_pressed("jump"):
-		if can_coyote_jump and not jumped:
-			jump()
-		elif current_air_jump_count < max_air_jump:
-			current_air_jump_count += 1
-			jump()
+	if event.is_action_pressed("jump") and can_coyote_jump and not jumped:
+		jump()
 
 func _on_airborne_state_entered() -> void:
 	if not jumped:
@@ -870,8 +822,7 @@ func _on_airborne_state_entered() -> void:
 func _on_airborne_state_physics_processing(delta: float) -> void:
 	if current_ladder != null:
 		return
-	if not is_dashing:
-		vel_vertical -= GRAVITY * delta
+	vel_vertical -= GRAVITY * delta
 	vel_vertical = clamp(vel_vertical, -MAX_FALL_SPEED, 10000)
 
 func grab_ladder(ladder: Ladder) -> void:
@@ -879,7 +830,6 @@ func grab_ladder(ladder: Ladder) -> void:
 	ladder_normal = ladder.get_climb_normal(global_position)
 	ladder_mantle_active = false
 	ladder_rung_distance = 0.0
-	is_dashing = false
 	is_sprinting = false
 	if _can_stand():
 		is_crouching = false
@@ -888,7 +838,6 @@ func grab_ladder(ladder: Ladder) -> void:
 	velocity = Vector3.ZERO
 	jumped = false
 	can_coyote_jump = false
-	current_air_jump_count = 0
 	jump_recovery_valid = false
 	var feet_y := global_position.y - _standing_half_height()
 	if is_on_floor() and feet_y >= ladder.get_top_y() - LADDER_TOP_ENTRY_MARGIN:
@@ -959,7 +908,7 @@ func _try_start_ladder_mantle(leave_ladder: bool) -> bool:
 	ladder_mantle_target = target
 	ladder_mantle_active = true
 	ladder_mantle_leaves = leave_ladder
-	ladder_normal = -ladder_normal
+	ladder_normal = - ladder_normal
 	_refresh_interaction_prompt()
 	return true
 
@@ -998,12 +947,6 @@ func _standing_half_height() -> float:
 	var capsule := standing_collision.shape as CapsuleShape3D
 	return capsule.height * 0.5 if capsule != null else 1.0
 
-
-func moving_toward_wall() -> bool:
-	wall_raycast.target_position = Vector3(raw_input_dir.x, 0, raw_input_dir.y)
-	if is_on_wall_only() and wall_raycast.is_colliding():
-		return true
-	return false
 
 func flash_hitmarker(color: Color = Color.YELLOW):
 	hitmarker.modulate = color
@@ -1133,7 +1076,6 @@ func set_preview_mode(enabled: bool) -> void:
 
 func _on_dialogue_started(_resource: DialogueResource) -> void:
 	dialogue_active = true
-	is_dashing = false
 	if _can_stand():
 		is_crouching = false
 	hotbar.hide()

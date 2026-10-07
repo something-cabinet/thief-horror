@@ -34,7 +34,6 @@ const KEYBINDABLE_ACTION_LIST = {
 	"left": "Move left",
 	"right": "Move right",
 	"jump": "Jump",
-	"dash": "Dash",
 	"crouch": "Crouch",
 	"interact": "Interact",
 	"item_slot_1": "Item slot 1",
