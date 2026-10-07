@@ -142,6 +142,14 @@ func equip(holder: Player) -> void:
 	_on_equipped()
 
 
+func _notification(what: int) -> void:
+	# Re-enabling a disabled body (e.g. the title-screen preview player being
+	# switched back on) puts it back into the physics space, which would pin a
+	# held item in the world again. See equip().
+	if what == NOTIFICATION_ENABLED and player != null:
+		PhysicsServer3D.body_set_space(get_rid(), RID())
+
+
 ## Called by the player when this item is thrown back into the world, after it
 ## is added to the level. The caller sets the transform and velocity afterwards.
 func release() -> void:

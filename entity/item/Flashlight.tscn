@@ -12,7 +12,7 @@ size = Vector3(0.32, 0.111614, 0.10692)
 [node name="Flashlight" unique_id=1332365637 instance=ExtResource("1_base")]
 mass = 0.4
 script = ExtResource("2_script")
-lit = true
+lit = false
 item_id = &"flashlight"
 display_name = "Flashlight"
 icon = ExtResource("3_icon")

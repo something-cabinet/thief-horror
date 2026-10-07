@@ -309,6 +309,7 @@ material = SubResource("StandardMaterial3D_3twv6")
 
 [node name="Flashlight" parent="ItemHolder" unique_id=147254660 instance=ExtResource("6_t7igh")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.730926, -5)
+lit = false
 
 [node name="PropHolder" type="Node3D" parent="." unique_id=1953059409]
 
