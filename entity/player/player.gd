@@ -57,6 +57,8 @@ const OUTLINE_VISIBILITY_MASK := 1 << 19
 const FOOTSTEP_SURFACE_MASK := (1 << 0) | (1 << 4)
 const FOOTSTEP_MIN_DISTANCE := 0.95
 const FOOTSTEP_MAX_DISTANCE := 1.15
+# Added to every surface's volume range in _footstep_profile.
+const FOOTSTEP_VOLUME_OFFSET_DB := 6.0
 const LADDER_SNAP_RATE := 10.0
 const LADDER_JUMP_OFF_MULTIPLIER := 0.6
 const LADDER_JUMP_OFF_SPEED := 3.0
@@ -661,7 +663,7 @@ func _update_footsteps(movement_start: Vector3) -> void:
 	next_footstep_distance = randf_range(FOOTSTEP_MIN_DISTANCE, FOOTSTEP_MAX_DISTANCE)
 	var profile := _footstep_profile(_current_footstep_surface())
 	var footstep_player := audio_player.prepare(landing_sfx, "SFX")
-	footstep_player.volume_db = randf_range(profile.z, profile.w)
+	footstep_player.volume_db = randf_range(profile.z, profile.w) + FOOTSTEP_VOLUME_OFFSET_DB
 	footstep_player.pitch_scale = randf_range(profile.x, profile.y)
 	footstep_player.call_deferred("play")
 
